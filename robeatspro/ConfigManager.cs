@@ -159,13 +159,31 @@ internal sealed class GameModeSettings
     [JsonPropertyName("activeGame")] public string ActiveGame { get; set; } = "funkyFriday";
 }
 
+internal sealed class GameProfile
+{
+    [JsonPropertyName("detection")] public DetectionSettings Detection { get; set; } = new();
+    [JsonPropertyName("tuning")] public TuningSettings Tuning { get; set; } = new();
+    [JsonPropertyName("tap")] public int[][] Tap { get; set; } = Array.Empty<int[]>();
+    [JsonPropertyName("hold")] public int[][] Hold { get; set; } = Array.Empty<int[]>();
+    [JsonPropertyName("accuracyPreset")] public AccuracyPreset AccuracyPreset { get; set; } = AccuracyPreset.PerfectOnly;
+}
+
+internal sealed class ProfilesSettings
+{
+    [JsonPropertyName("funkyFriday")] public GameProfile FunkyFriday { get; set; } = new();
+    [JsonPropertyName("robeats")] public GameProfile RoBeats { get; set; } = new();
+}
+
 internal sealed class AppSettings
 {
     [JsonPropertyName("keybinds")] public KeybindSettings Keybinds { get; set; } = new();
-    [JsonPropertyName("detection")] public DetectionSettings Detection { get; set; } = new();
     [JsonPropertyName("theme")] public ThemeSettings Theme { get; set; } = new();
-    [JsonPropertyName("tuning")] public TuningSettings Tuning { get; set; } = new();
     [JsonPropertyName("gameMode")] public GameModeSettings GameMode { get; set; } = new();
+    [JsonPropertyName("profiles")] public ProfilesSettings Profiles { get; set; } = new();
+
+    // Legacy fields kept for one-shot migration read
+    [JsonPropertyName("detection")] public DetectionSettings? LegacyDetection { get; set; }
+    [JsonPropertyName("tuning")] public TuningSettings? LegacyTuning { get; set; }
 }
 
 // ── ConfigManager (singleton) ───────────────────────────────────
@@ -205,10 +223,15 @@ internal sealed class ConfigManager
     public static ConfigManager Instance { get; } = new();
 
     public KeybindSettings Keybinds => _settings.Keybinds;
-    public DetectionSettings Detection => _settings.Detection;
     public ThemeSettings Theme => _settings.Theme;
-    public TuningSettings Tuning => _settings.Tuning;
     public GameModeSettings GameMode => _settings.GameMode;
+    public ProfilesSettings Profiles => _settings.Profiles;
+
+    public GameProfile ActiveProfile =>
+        GameMode.ActiveGame == "funkyFriday" ? Profiles.FunkyFriday : Profiles.RoBeats;
+
+    public DetectionSettings Detection => ActiveProfile.Detection;
+    public TuningSettings Tuning => ActiveProfile.Tuning;
 
     public bool IsWhiteGrayMode => GameMode.ActiveGame == "funkyFriday";
 
@@ -246,8 +269,57 @@ internal sealed class ConfigManager
         {
             var json = File.ReadAllText(SettingsPath);
             _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+            MigrateLegacyIfNeeded();
         }
         catch { _settings = new AppSettings(); }
+    }
+
+    private void MigrateLegacyIfNeeded()
+    {
+        bool hasLegacyDetection = _settings.LegacyDetection != null;
+        bool hasLegacyTuning    = _settings.LegacyTuning != null;
+        bool hasLegacyCoords    = File.Exists(CoordsPath);
+
+        if (!hasLegacyDetection && !hasLegacyTuning && !hasLegacyCoords) return;
+
+        var activeGame = _settings.GameMode.ActiveGame;
+        var target = activeGame == "funkyFriday"
+            ? _settings.Profiles.FunkyFriday
+            : _settings.Profiles.RoBeats;
+
+        if (hasLegacyDetection) target.Detection = _settings.LegacyDetection!;
+        if (hasLegacyTuning)    target.Tuning    = _settings.LegacyTuning!;
+
+        if (hasLegacyCoords)
+        {
+            try
+            {
+                var json = File.ReadAllText(CoordsPath);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                var tapArr  = root.GetProperty("tap");
+                var holdArr = root.GetProperty("hold");
+                target.Tap  = new int[4][];
+                target.Hold = new int[4][];
+                for (int i = 0; i < 4; i++)
+                {
+                    target.Tap[i]  = new[] { tapArr[i][0].GetInt32(),  tapArr[i][1].GetInt32() };
+                    target.Hold[i] = new[] { holdArr[i][0].GetInt32(), holdArr[i][1].GetInt32() };
+                }
+            }
+            catch { /* coords.json corrupt — fall through to defaults */ }
+        }
+
+        _settings.LegacyDetection = null;
+        _settings.LegacyTuning    = null;
+        SaveSettings();
+
+        if (hasLegacyCoords)
+        {
+            try { File.Delete(CoordsPath); } catch { }
+        }
+
+        Log.Info($"Migrated legacy settings to profile: {activeGame}");
     }
 
     public void SaveSettings()
@@ -295,42 +367,30 @@ internal sealed class ConfigManager
 
     public (Point[] tap, Point[] hold) LoadCoords()
     {
-        if (!File.Exists(CoordsPath))
+        var p = ActiveProfile;
+        if (p.Tap.Length != 4 || p.Hold.Length != 4)
             return GetDefaultCoords();
 
         try
         {
-            var json = File.ReadAllText(CoordsPath);
-            var doc = JsonDocument.Parse(json);
-            var root = doc.RootElement;
-
-            var tap = new Point[4];
+            var tap  = new Point[4];
             var hold = new Point[4];
-            var tapArr = root.GetProperty("tap");
-            var holdArr = root.GetProperty("hold");
-
             for (int i = 0; i < 4; i++)
             {
-                tap[i] = new Point(tapArr[i][0].GetInt32(), tapArr[i][1].GetInt32());
-                hold[i] = new Point(holdArr[i][0].GetInt32(), holdArr[i][1].GetInt32());
+                tap[i]  = new Point(p.Tap[i][0],  p.Tap[i][1]);
+                hold[i] = new Point(p.Hold[i][0], p.Hold[i][1]);
             }
             return (tap, hold);
         }
-        catch
-        {
-            return GetDefaultCoords();
-        }
+        catch { return GetDefaultCoords(); }
     }
 
     public void SaveCoords(Point[] tap, Point[] hold)
     {
-        var obj = new
-        {
-            tap = tap.Select(p => new[] { p.X, p.Y }).ToArray(),
-            hold = hold.Select(p => new[] { p.X, p.Y }).ToArray()
-        };
-        var json = JsonSerializer.Serialize(obj, JsonOpts);
-        File.WriteAllText(CoordsPath, json);
+        var p = ActiveProfile;
+        p.Tap  = tap.Select(pt => new[] { pt.X, pt.Y }).ToArray();
+        p.Hold = hold.Select(pt => new[] { pt.X, pt.Y }).ToArray();
+        SaveSettings();
     }
 
     // ── Screenshots ─────────────────────────────────────────────
