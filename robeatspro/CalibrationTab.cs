@@ -411,6 +411,36 @@ internal sealed class CalibrationTab : UserControl
                     using (var patchOutline = new Pen(col, 1))
                         g.DrawRectangle(patchOutline, patchRect);
 
+                    // Live detection HUD
+                    var monitorPt = pts[i];
+                    int captureX = monitorPt.X - _monitorBounds.Left;
+                    int captureY = monitorPt.Y - _monitorBounds.Top;
+
+                    if (_capture != null
+                        && captureX >= SampleHalf && captureY >= SampleHalf
+                        && captureX < _capture.Width - SampleHalf
+                        && captureY < _capture.Height - SampleHalf)
+                    {
+                        var analysis = _capture.AnalyzePatch(captureX, captureY, SampleHalf, includePixels: false);
+                        int count = kind == "tap" ? analysis.WhiteCount : analysis.GrayCount;
+                        int minPx = ConfigManager.Instance.Tuning.MinPixels;
+                        bool pass = count >= minPx;
+                        string mark = pass ? "\u2713" : "\u2717";
+                        var hudColor = pass ? Color.FromArgb(80, 220, 120) : Color.FromArgb(255, 90, 90);
+
+                        using var hudFont = new Font("MS Sans Serif", 8f, FontStyle.Bold);
+                        using var hudBrush = new SolidBrush(hudColor);
+                        using var shadowBrush = new SolidBrush(Color.FromArgb(200, 0, 0, 0));
+
+                        string hudText = $"{count} {mark}";
+                        var size = g.MeasureString(hudText, hudFont);
+                        int hudX = dx + sh / 2 + 4;
+                        int hudY = dy - (int)(size.Height / 2);
+
+                        g.FillRectangle(shadowBrush, hudX - 2, hudY, size.Width + 4, size.Height);
+                        g.DrawString(hudText, hudFont, hudBrush, hudX, hudY);
+                    }
+
                     string lbl = kind == "tap" ? $"T{LaneNames[i]}" : $"H{LaneNames[i]}";
                     using var font = new Font("MS Sans Serif", 7f);
                     using var lblBrush = new SolidBrush(col);
