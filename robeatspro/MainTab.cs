@@ -9,9 +9,11 @@ internal sealed class MainTab : UserControl
     private readonly CheckBox _debugCheck;
     private readonly Label _statusLabel;
     private readonly Label _fpsLabel;
+    private readonly Label _fpsWarnLabel;
     private readonly Label[] _laneLabels = new Label[4];
     private readonly GroupBox _laneGroup;
     private readonly System.Windows.Forms.Timer _timer;
+    private readonly System.Windows.Forms.Timer _fpsTimer;
 
     // Quick-change color controls
     private readonly Panel _tapColorSwatch;
@@ -95,8 +97,8 @@ internal sealed class MainTab : UserControl
         _fpsLabel = new Label
         {
             Text = "FPS: --",
-            Font = font,
-            ForeColor = Color.Gray,
+            Font = new Font("MS Sans Serif", 9f, FontStyle.Bold),
+            ForeColor = Color.FromArgb(160, 160, 170),
             AutoSize = true,
             Location = new Point(14, y),
             TextAlign = ContentAlignment.MiddleLeft,
@@ -309,6 +311,20 @@ internal sealed class MainTab : UserControl
         };
         Controls.Add(updateBtn);
 
+        // ── FPS warning label (bottom-left) ────────────────────────
+        _fpsWarnLabel = new Label
+        {
+            Text = "",
+            Font = new Font("MS Sans Serif", 8f),
+            AutoSize = false,
+            Size = new Size(360, 32),
+            Location = new Point(14, y + 26),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
+            ForeColor = Color.FromArgb(255, 100, 100),
+            Visible = false
+        };
+        Controls.Add(_fpsWarnLabel);
+
         // ── Initial swatch colors ──────────────────────────────────
         UpdateTapSwatch();
         UpdateHoldSwatch();
@@ -317,6 +333,11 @@ internal sealed class MainTab : UserControl
         _timer = new System.Windows.Forms.Timer { Interval = 100 };
         _timer.Tick += Timer_Tick;
         _timer.Start();
+
+        // ── FPS update timer (1 Hz) ────────────────────────────────
+        _fpsTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        _fpsTimer.Tick += FpsTimer_Tick;
+        _fpsTimer.Start();
     }
 
     // ── Swatch helpers ─────────────────────────────────────────────
@@ -443,7 +464,6 @@ internal sealed class MainTab : UserControl
         _stopBtn.Enabled = false;
         _statusLabel.Text = "Status: IDLE";
         _statusLabel.ForeColor = ConfigManager.Instance.Theme.GetTextColor();
-        _fpsLabel.Text = "FPS: --";
         for (int i = 0; i < 4; i++)
             _laneLabels[i].Text = $"{MacroEngine.LaneNames[i]}: IDLE";
     }
@@ -465,8 +485,6 @@ internal sealed class MainTab : UserControl
             _statusLabel.Text = "Status: PAUSED";
             _statusLabel.ForeColor = Color.FromArgb(200, 60, 60);
         }
-
-        _fpsLabel.Text = $"FPS: {_engine.Fps}";
 
         // Lane states
         for (int i = 0; i < 4; i++)
@@ -507,6 +525,42 @@ internal sealed class MainTab : UserControl
         if (NativeApi.IsKeyDown(cfg.Quit))
         {
             _engine.Stop();
+        }
+    }
+
+    // ── FPS timer tick ─────────────────────────────────────────────
+
+    private void FpsTimer_Tick(object? sender, EventArgs e)
+    {
+        var engine = MacroEngine.CurrentInstance;
+        if (engine == null || !engine.Running)
+        {
+            _fpsLabel.Text = "FPS: --";
+            _fpsLabel.ForeColor = Color.FromArgb(160, 160, 170);
+            _fpsWarnLabel.Visible = false;
+            return;
+        }
+
+        int fps = engine.Fps;
+        _fpsLabel.Text = $"FPS: {fps}";
+
+        if (fps >= 200)
+        {
+            _fpsLabel.ForeColor = Color.FromArgb(80, 220, 120);    // green
+            _fpsWarnLabel.Visible = false;
+        }
+        else if (fps >= 120)
+        {
+            _fpsLabel.ForeColor = Color.FromArgb(230, 200, 80);    // yellow
+            _fpsWarnLabel.Visible = false;
+        }
+        else
+        {
+            _fpsLabel.ForeColor = Color.FromArgb(255, 80, 80);     // red
+            _fpsWarnLabel.Text =
+                "Warning: FPS below 120 — macro may miss notes.\n" +
+                "Close background apps or lower Roblox graphics to Quality 1.";
+            _fpsWarnLabel.Visible = true;
         }
     }
 
@@ -552,6 +606,8 @@ internal sealed class MainTab : UserControl
         if (disposing)
         {
             _timer.Stop();
+            _fpsTimer?.Stop();
+            _fpsTimer?.Dispose();
             _debugForm?.Close();
             _engine?.Stop();
         }
