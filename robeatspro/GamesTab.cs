@@ -120,7 +120,7 @@ internal sealed class GamesTab : UserControl
             Text = "Detection Info",
             Font = RetroFont,
             Location = new Point(12, 284),
-            Size = new Size(360, 120),
+            Size = new Size(360, 135),
             FlatStyle = FlatStyle.Standard,
             Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
         };
@@ -134,10 +134,11 @@ internal sealed class GamesTab : UserControl
                 "  Same detection as larpLOLv4\n\n" +
                 "RoBeats (Color-based mode):\n" +
                 "  Notes = configurable color thresholds\n" +
-                "  Holds = configurable color range",
+                "  Holds = configurable color range\n\n" +
+                "Min FPS: 120  |  Recommended: 200+  |  Roblox Quality: 1",
             Font = RetroFont,
             Location = new Point(10, 18),
-            Size = new Size(340, 95)
+            Size = new Size(340, 110)
         };
         grpInfo.Controls.Add(infoLabel);
         Controls.Add(grpInfo);
@@ -148,7 +149,7 @@ internal sealed class GamesTab : UserControl
             Text = "Accuracy:",
             Font = RetroFont,
             AutoSize = true,
-            Location = new Point(12, 414)
+            Location = new Point(12, 432)
         };
         Controls.Add(_accuracyLabel);
 
@@ -156,7 +157,7 @@ internal sealed class GamesTab : UserControl
         {
             DropDownStyle = ComboBoxStyle.DropDownList,
             Font = RetroFont,
-            Location = new Point(80, 410),
+            Location = new Point(80, 428),
             Size = new Size(160, 22)
         };
         Controls.Add(_accuracyCombo);
