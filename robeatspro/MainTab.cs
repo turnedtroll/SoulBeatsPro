@@ -426,6 +426,25 @@ internal sealed class MainTab : UserControl
             _engine.Active = !_engine.Active;
     }
 
+    /// <summary>
+    /// When the active game switches, the running engine still holds the old
+    /// profile's snapshot. Stop it and restart so the new profile takes effect.
+    /// No-op if the engine isn't running.
+    /// </summary>
+    public void RestartOnGameSwitch()
+    {
+        if (_engine == null || !_engine.Running) return;
+
+        _engine.OnStopped += () =>
+        {
+            if (InvokeRequired)
+                BeginInvoke(new Action(() => RunBtn_Click(null, EventArgs.Empty)));
+            else
+                RunBtn_Click(null, EventArgs.Empty);
+        };
+        _engine.Stop();
+    }
+
     // ── Run / Stop ─────────────────────────────────────────────────
 
     private void RunBtn_Click(object? sender, EventArgs e)

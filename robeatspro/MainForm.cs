@@ -43,7 +43,11 @@ internal sealed class MainForm : Form
         // Games tab
         var gamesPage = new ThemedTabPage("Games");
         var gamesTab = new GamesTab { Dock = DockStyle.Fill };
-        gamesTab.GameModeChanged += () => Text = $"SoulBeats Pro — {ConfigManager.Instance.GameMode.ActiveGame}";
+        gamesTab.GameModeChanged += () =>
+        {
+            Text = $"SoulBeats Pro — {ConfigManager.Instance.GameMode.ActiveGame}";
+            _mainTab.RestartOnGameSwitch();
+        };
         gamesPage.Controls.Add(gamesTab);
         _tabs.TabPages.Add(gamesPage);
 
