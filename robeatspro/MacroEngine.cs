@@ -321,7 +321,15 @@ internal sealed class MacroEngine
                     }
                 }
 
-                _lastNoteCount[i] = noteCount;
+                // If the lane just exited Tapped or Holding back to Idle, force
+                // _lastNoteCount low so the next frame's high count counts as a
+                // fresh rising edge. Without this reset, a note still in the zone
+                // at the moment of exit gets silently skipped.
+                bool justExitedToIdle =
+                    (state == LaneState.Tapped || state == LaneState.Holding)
+                    && States[i] == LaneState.Idle;
+
+                _lastNoteCount[i] = justExitedToIdle ? 0 : noteCount;
             }
 
             Thread.SpinWait(100);
