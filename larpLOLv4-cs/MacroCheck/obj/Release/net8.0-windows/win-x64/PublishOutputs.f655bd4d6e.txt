@@ -1,0 +1,2 @@
+C:\Users\G-Force\Downloads\antoher macro\larpLOLv4-cs\MacroCheck\bin\Release\net8.0-windows\win-x64\publish\MacroCheck.pdb
+C:\Users\G-Force\Downloads\antoher macro\larpLOLv4-cs\MacroCheck\bin\Release\net8.0-windows\win-x64\publish\MacroCheck.exe

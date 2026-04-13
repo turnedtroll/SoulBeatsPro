@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "Is2gcGFZe1Nf+oWUz7HjqqcqaicEqf/CqrdHH4mCNjGj8+Vsh57yr/uoDAEWi131xPhwII17jxKQO0GMnfVbDw==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\G-Force\\Downloads\\antoher macro\\larpLOLv4-cs\\larpLOLv4\\larpLOLv4.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\G-Force\\.nuget\\packages\\microsoft.net.illink.tasks\\8.0.24\\microsoft.net.illink.tasks.8.0.24.nupkg.sha512",
+    "C:\\Users\\G-Force\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\8.0.24\\microsoft.netcore.app.runtime.win-x64.8.0.24.nupkg.sha512",
+    "C:\\Users\\G-Force\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\8.0.24\\microsoft.windowsdesktop.app.runtime.win-x64.8.0.24.nupkg.sha512",
+    "C:\\Users\\G-Force\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\8.0.24\\microsoft.aspnetcore.app.runtime.win-x64.8.0.24.nupkg.sha512"
+  ],
+  "logs": []
+}

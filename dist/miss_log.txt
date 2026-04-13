@@ -1,0 +1,172 @@
+======================================================================
+MACRO START — 2026-03-02 22:24:30
+======================================================================
+OS:           Windows 10.0.26200
+Machine:      AMD64
+Python:       3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Frozen (exe): True
+Base dir:     C:\Users\G-Force\Downloads\antoher macro\dist
+Screen:       1920x1080
+DPI:          96 (100% scaling)
+coords.txt:   NOT FOUND at C:\Users\G-Force\Downloads\antoher macro\dist\coords.txt
+  using defaults — tap: [[720, 950], [881, 950], [1039, 950], [1200, 950]]
+  using defaults — hold: [[720, 824], [878, 824], [1040, 824], [1197, 824]]
+  !! WARNING: no calibration file — coords may not match this screen
+SendInput:    sizeof(INPUT)=40 press=1 release=1
+Screen grab:  OK (mss 10.1.0)
+numpy:        2.3.5
+Admin:        False
+  (note: SendInput may fail in some games without admin)
+======================================================================
+
+MISS lane=1(x) t=1772508573.227 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508573.305 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=3(.) t=1772508573.404 state=tapped white=0 gray=2 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(37,37,37) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508595.208 state=tapped white=0 gray=28 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(93,93,93) hold_avg=(255,255,255) fps=143
+MISS lane=2(,) t=1772508605.429 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=0(z) t=1772508606.741 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=3(.) t=1772508607.144 state=holding white=0 gray=1 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.060 tap_avg=(19,19,19) hold_avg=(255,255,255) fps=143
+MISS lane=3(.) t=1772508607.158 state=idle white=0 gray=49 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.046 tap_avg=(150,150,150) hold_avg=(255,255,255) fps=143
+MISS lane=0(z) t=1772508607.374 state=tapped white=0 gray=21 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(71,71,71) hold_avg=(0,0,0) fps=143
+MISS lane=0(z) t=1772508608.046 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(38,38,38) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508610.005 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(148,148,148) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508617.416 state=tapped white=0 gray=28 hold_gray=1 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(93,93,93) hold_avg=(243,243,243) fps=143
+MISS lane=1(x) t=1772508617.755 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508625.817 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(2,2,2) hold_avg=(15,15,15) fps=143
+MISS lane=2(,) t=1772508626.012 state=tapped white=0 gray=49 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(255,255,255) fps=143
+MISS lane=0(z) t=1772508626.261 state=tapped white=0 gray=21 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(71,71,71) hold_avg=(255,255,255) fps=144
+MISS lane=2(,) t=1772508627.103 state=tapped white=0 gray=0 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(255,255,255) fps=144
+MISS lane=0(z) t=1772508630.335 state=tapped white=0 gray=0 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(51,51,51) hold_avg=(255,255,255) fps=140
+MISS lane=0(z) t=1772508630.553 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(0,0,0) fps=140
+MISS lane=2(,) t=1772508630.553 state=tapped white=0 gray=0 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(255,255,255) fps=140
+MISS lane=1(x) t=1772508630.629 state=tapped white=0 gray=42 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(135,135,135) hold_avg=(0,0,0) fps=140
+MISS lane=2(,) t=1772508630.859 state=tapped white=0 gray=0 hold_gray=1 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(87,87,87) fps=140
+MISS lane=2(,) t=1772508630.971 state=tapped white=0 gray=0 hold_gray=1 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(51,51,51) hold_avg=(123,123,123) fps=140
+MISS lane=3(.) t=1772508630.971 state=tapped white=1 gray=2 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(53,53,53) hold_avg=(255,255,255) fps=140
+MISS lane=1(x) t=1772508631.505 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=2(,) t=1772508631.519 state=tapped white=0 gray=0 hold_gray=1 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(51,51,51) hold_avg=(123,123,123) fps=143
+MISS lane=2(,) t=1772508631.714 state=tapped white=0 gray=0 hold_gray=1 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(51,51,51) hold_avg=(123,123,123) fps=143
+MISS lane=2(,) t=1772508631.810 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(0,0,0) hold_avg=(13,13,13) fps=143
+MISS lane=3(.) t=1772508632.594 state=tapped white=0 gray=4 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(75,75,75) hold_avg=(0,0,0) fps=143
+MISS lane=3(.) t=1772508632.643 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(16,16,16) hold_avg=(0,0,0) fps=143
+MISS lane=3(.) t=1772508632.663 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(2,2,2) hold_avg=(2,2,2) fps=143
+MISS lane=3(.) t=1772508632.679 state=tapped white=0 gray=0 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(2,2,2) hold_avg=(245,245,245) fps=143
+MISS lane=3(.) t=1772508632.775 state=tapped white=0 gray=4 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(77,77,77) hold_avg=(122,122,122) fps=143
+MISS lane=3(.) t=1772508632.803 state=tapped white=0 gray=3 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(44,44,44) hold_avg=(98,98,98) fps=143
+MISS lane=3(.) t=1772508632.893 state=tapped white=1 gray=2 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(53,53,53) hold_avg=(194,194,194) fps=143
+MISS lane=3(.) t=1772508632.963 state=tapped white=1 gray=2 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(53,53,53) hold_avg=(45,45,45) fps=143
+MISS lane=3(.) t=1772508633.130 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=0(z) t=1772508633.839 state=tapped white=0 gray=0 hold_gray=1 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(50,50,50) hold_avg=(42,42,42) fps=144
+MISS lane=0(z) t=1772508633.886 state=tapped white=0 gray=1 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(42,42,42) hold_avg=(28,28,28) fps=144
+MISS lane=0(z) t=1772508633.942 state=tapped white=0 gray=1 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(40,40,40) hold_avg=(219,219,219) fps=144
+MISS lane=0(z) t=1772508634.159 state=tapped white=0 gray=1 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(42,42,42) hold_avg=(148,148,148) fps=144
+MISS lane=1(x) t=1772508634.165 state=tapped white=0 gray=1 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(52,52,52) hold_avg=(0,0,0) fps=144
+MISS lane=0(z) t=1772508634.248 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(0,0,0) fps=143
+MISS lane=1(x) t=1772508634.248 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=0(z) t=1772508634.324 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=143
+MISS lane=3(.) t=1772508702.449 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.047 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=0(z) t=1772508702.456 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.053 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=2(,) t=1772508702.524 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.046 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=1(x) t=1772508702.539 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.054 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=2(,) t=1772508770.955 state=tapped white=0 gray=0 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(45,45,45) hold_avg=(255,255,255) fps=144
+MISS lane=0(z) t=1772508803.885 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=142
+MISS lane=1(x) t=1772508830.593 state=tapped white=0 gray=49 hold_gray=0 hold_white=True hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(255,255,255) fps=144
+MISS lane=2(,) t=1772508830.601 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=144
+MISS lane=2(,) t=1772508841.454 state=tapped white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(51,51,51) hold_avg=(0,0,0) fps=137
+MISS lane=0(z) t=1772508841.669 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=137
+======================================================================
+MACRO START — 2026-03-06 10:07:33
+======================================================================
+OS:           Windows 10.0.26200
+Machine:      AMD64
+Python:       3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Frozen (exe): True
+Base dir:     C:\Users\G-Force\Downloads\antoher macro\dist
+Screen:       1920x1080
+DPI:          96 (100% scaling)
+coords.txt:   NOT FOUND at C:\Users\G-Force\Downloads\antoher macro\dist\coords.txt
+  using defaults — tap: [[720, 950], [881, 950], [1039, 950], [1200, 950]]
+  using defaults — hold: [[720, 824], [878, 824], [1040, 824], [1197, 824]]
+  !! WARNING: no calibration file — coords may not match this screen
+SendInput:    cbSize=40 (sizeof=40) press=1 release=1
+Screen grab:  OK (mss 10.1.0)
+numpy:        2.3.5
+Admin:        False
+  (note: SendInput may fail in some games without admin)
+======================================================================
+
+MISS lane=2(,) t=1772809655.489 state=idle white=0 gray=14 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.004 tap_avg=(50,50,50) hold_avg=(0,0,0) fps=139
+MISS lane=2(,) t=1772809656.188 state=holding white=0 gray=14 hold_gray=49 hold_white=False hold_inc=True saw_tail=True cooldown=0.000 tap_avg=(50,50,50) hold_avg=(150,150,150) fps=139
+MISS lane=2(,) t=1772809656.354 state=holding white=0 gray=0 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.060 tap_avg=(0,0,0) hold_avg=(0,0,0) fps=131
+MISS lane=2(,) t=1772809656.369 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.045 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=131
+MISS lane=3(.) t=1772809662.389 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=122
+======================================================================
+MACRO START — 2026-03-06 10:09:02
+======================================================================
+OS:           Windows 10.0.26200
+Machine:      AMD64
+Python:       3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Frozen (exe): True
+Base dir:     C:\Users\G-Force\Downloads\antoher macro\dist
+Screen:       1920x1080
+DPI:          96 (100% scaling)
+coords.txt:   NOT FOUND at C:\Users\G-Force\Downloads\antoher macro\dist\coords.txt
+  using defaults — tap: [[720, 950], [881, 950], [1039, 950], [1200, 950]]
+  using defaults — hold: [[720, 824], [878, 824], [1040, 824], [1197, 824]]
+  !! WARNING: no calibration file — coords may not match this screen
+SendInput:    cbSize=40 (sizeof=40) press=1 release=1
+Screen grab:  OK (mss 10.1.0)
+numpy:        2.3.5
+Admin:        False
+  (note: SendInput may fail in some games without admin)
+======================================================================
+
+======================================================================
+MACRO START — 2026-03-06 11:10:38
+======================================================================
+OS:           Windows 10.0.26200
+Machine:      AMD64
+Python:       3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Frozen (exe): True
+Base dir:     C:\Users\G-Force\Downloads\antoher macro\dist
+Screen:       1920x1080
+DPI:          96 (100% scaling)
+coords.txt:   NOT FOUND at C:\Users\G-Force\Downloads\antoher macro\dist\coords.txt
+  using defaults — tap: [[720, 950], [881, 950], [1039, 950], [1200, 950]]
+  using defaults — hold: [[720, 824], [878, 824], [1040, 824], [1197, 824]]
+  !! WARNING: no calibration file — coords may not match this screen
+SendInput:    cbSize=40 (sizeof=40) press=1 release=1
+Screen grab:  OK (mss 10.1.0)
+numpy:        2.3.5
+Admin:        False
+  (note: SendInput may fail in some games without admin)
+======================================================================
+
+======================================================================
+MACRO START — 2026-03-06 11:12:35
+======================================================================
+OS:           Windows 10.0.26200
+Machine:      AMD64
+Python:       3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+Frozen (exe): True
+Base dir:     C:\Users\G-Force\Downloads\antoher macro\dist
+Screen:       1920x1080
+DPI:          96 (100% scaling)
+coords.txt:   LOADED from C:\Users\G-Force\Downloads\antoher macro\dist\coords.txt
+  tap:  [[705, 950], [876, 950], [1044, 950], [1215, 950]]
+  hold: [[705, 824], [873, 824], [1045, 824], [1212, 824]]
+  timing_offset: 0
+SendInput:    cbSize=40 (sizeof=40) press=1 release=1
+Screen grab:  OK (mss 10.1.0)
+numpy:        2.3.5
+Admin:        False
+  (note: SendInput may fail in some games without admin)
+======================================================================
+
+MISS lane=1(x) t=1772813556.876 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.045 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=92
+MISS lane=0(z) t=1772813557.820 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.047 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=119
+MISS lane=2(,) t=1772813557.828 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.047 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=119
+MISS lane=2(,) t=1772813572.704 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.043 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=139
+MISS lane=0(z) t=1772813573.652 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.047 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=139
+MISS lane=3(.) t=1772813575.003 state=idle white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=139
+MISS lane=3(.) t=1772813581.591 state=tapped white=0 gray=49 hold_gray=0 hold_white=False hold_inc=False saw_tail=False cooldown=0.000 tap_avg=(150,150,150) hold_avg=(0,0,0) fps=139

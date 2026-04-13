@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/G-Force/Downloads/coding journey/antoher macro/**)",
+      "Bash(git -C \"C:/Users/G-Force/Downloads/coding journey/antoher macro/robeatspro\" rev-parse --show-toplevel)",
+      "Bash(dotnet build:*)",
+      "Bash(powershell.exe:*)"
+    ]
+  }
+}

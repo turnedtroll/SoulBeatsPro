@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pyinstaller:*)",
+      "Bash(python:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(/c/Windows/System32/taskkill.exe:*)",
+      "Bash(cmd.exe:*)",
+      "Bash(PATH=\"$PATH:/c/Windows/System32:/c/Windows\" cmd.exe:*)",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "WebSearch",
+      "Bash(where ffmpeg:*)",
+      "Bash(tasklist:*)",
+      "Bash(powershell:*)",
+      "Bash(/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe:*)"
+    ]
+  }
+}

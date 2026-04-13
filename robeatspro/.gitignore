@@ -1,0 +1,12 @@
+## Build output
+bin/
+obj/
+publish/
+
+## Secrets (never commit)
+Secrets.cs
+
+## User-specific
+*.user
+*.suo
+.vs/

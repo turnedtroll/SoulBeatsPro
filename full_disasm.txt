@@ -1,0 +1,956 @@
+# pydisasm version 6.1.3
+# Python bytecode 3.13.0 (3571)
+# Disassembled from Python 3.11.9 (tags/v3.11.9:de54cf5, Apr  2 2024, 10:12:12) [MSC v.1938 64 bit (AMD64)]
+# Timestamp in code: 0 (1969-12-31 19:00:00)
+# Source code size mod 2**32: 0 bytes
+# Method Name:       <module>
+# Filename:          red_black_detector (1).py
+# Argument count:    0
+# Position-only argument count: 0
+# Keyword-only arguments: 0
+# Number of locals:  0
+# Stack size:        5
+# Flags:             0x00000000 (0x0)
+# First Line:        1
+# Constants:
+#    0: 0
+#    1: None
+#    2: ('label',)
+#    3: <Code311 code object check_overlap at 0x1d7f3433950, file red_black_detector (1).py>, line 9
+#    4: '__main__'
+#    5: 'Made by Silnass https://discord.gg/S5ujryWK8a'
+#    6: 'Stopped'
+#    7: 'Error: '
+#    8: 0.5
+# Names:
+#    0: time
+#    1: pyautogui
+#    2: mss
+#    3: numpy
+#    4: np
+#    5: keyboard
+#    6: scipy.ndimage
+#    7: label
+#    8: check_overlap
+#    9: __name__
+#   10: print
+#   11: KeyboardInterrupt
+#   12: Exception
+#   13: e
+#   14: sleep
+  0:           0 RESUME               0
+
+  1:           2 LOAD_CONST           (0)
+               4 LOAD_CONST           (None)
+               6 IMPORT_NAME          (time)
+               8 STORE_NAME           (time)
+
+  2:          10 LOAD_CONST           (0)
+              12 LOAD_CONST           (None)
+              14 IMPORT_NAME          (pyautogui)
+              16 STORE_NAME           (pyautogui)
+
+  3:          18 LOAD_CONST           (0)
+              20 LOAD_CONST           (None)
+              22 IMPORT_NAME          (mss)
+              24 STORE_NAME           (mss)
+
+  4:          26 LOAD_CONST           (0)
+              28 LOAD_CONST           (None)
+              30 IMPORT_NAME          (numpy)
+              32 STORE_NAME           (np)
+
+  5:          34 LOAD_CONST           (0)
+              36 LOAD_CONST           (None)
+              38 IMPORT_NAME          (keyboard)
+              40 STORE_NAME           (keyboard)
+
+  6:          42 LOAD_CONST           (0)
+              44 LOAD_CONST           (('label',))
+              46 IMPORT_NAME          (scipy.ndimage)
+              48 IMPORT_FROM          (label)
+              50 STORE_NAME           (label)
+              52 POP_TOP
+
+  9:          54 LOAD_CONST           (<Code311 code object check_overlap at 0x1d7f3433950, file red_black_detector (1).py>, line 9)
+              56 MAKE_FUNCTION
+              58 STORE_NAME           (check_overlap)
+
+130:          60 LOAD_NAME            (__name__)
+              62 LOAD_CONST           ("__main__")
+              64 COMPARE_OP           (==)
+              68 POP_JUMP_IF_FALSE    (to 110)
+
+131:          72 LOAD_NAME            (print)
+              74 PUSH_NULL
+              76 LOAD_CONST           ("Made by Silnass https://discord.gg/S5ujryWK8a")
+              78 CALL                 1
+              86 POP_TOP
+
+132:          88 NOP
+
+133:          90 NOP
+
+134:          92 LOAD_NAME            (check_overlap)
+              94 PUSH_NULL
+              96 CALL                 0
+             104 POP_TOP
+
+133:         106 JUMP_BACKWARD        (to 92)
+
+130:     >>  110 RETURN_CONST         (None)
+         >>  112 PUSH_EXC_INFO
+
+135:         114 LOAD_NAME            (KeyboardInterrupt)
+             116 CHECK_EXC_MATCH
+             118 POP_JUMP_IF_FALSE    (to 144)
+             122 POP_TOP
+
+136:         124 LOAD_NAME            (print)
+             126 PUSH_NULL
+         >>  128 LOAD_CONST           ("Stopped")
+             130 CALL                 1
+             138 POP_TOP
+             140 POP_EXCEPT
+             142 RETURN_CONST         (None)
+
+137:     >>  144 LOAD_NAME            (Exception)
+             146 CHECK_EXC_MATCH
+             148 POP_JUMP_IF_FALSE    (to 230)
+             152 STORE_NAME           (e)
+
+138:         154 LOAD_NAME            (print)
+             156 PUSH_NULL
+             158 LOAD_CONST           ("Error: ")
+             160 LOAD_NAME            (e)
+             162 FORMAT_SIMPLE
+             164 BUILD_STRING         2
+             166 CALL                 1
+             174 POP_TOP
+
+139:         176 LOAD_NAME            (time)
+             178 LOAD_ATTR            (sleep)
+             198 PUSH_NULL
+             200 LOAD_CONST           (0.5)
+             202 CALL                 1
+             210 POP_TOP
+             212 POP_EXCEPT
+             214 LOAD_CONST           (None)
+             216 STORE_NAME           (e)
+             218 DELETE_NAME          (e)
+             220 RETURN_CONST         (None)
+         >>  222 LOAD_CONST           (None)
+             224 STORE_NAME           (e)
+             226 DELETE_NAME          (e)
+             228 RERAISE              1
+
+137:     >>  230 RERAISE              0
+         >>  232 COPY                 3
+             234 POP_EXCEPT
+             236 RERAISE              1
+
+ExceptionTable:
+  90 to 108 -> 112 [0]
+  112 to 138 -> 232 [1] lasti
+  144 to 152 -> 232 [1] lasti
+  154 to 210 -> 222 [1] lasti
+  222 to 230 -> 232 [1] lasti
+
+# Method Name:       check_overlap
+# Filename:          red_black_detector (1).py
+# Argument count:    0
+# Position-only argument count: 0
+# Keyword-only arguments: 0
+# Number of locals:  47
+# Stack size:        10
+# Flags:             0x00000003 (NEWLOCALS | OPTIMIZED)
+# First Line:        9
+# Constants:
+#    0: None
+#    1: 0.2
+#    2: 0.8
+#    3: ('top', 'left', 'width', 'height')
+#    4: 255
+#    5: 0
+#    6: 5
+#    7: 1
+#    8: 0.85
+#    9: 2
+#   10: 14.75
+#   11: True
+#   12: False
+#   13: 0.3
+#   14: 0.25
+#   15: '3'
+#   16: 'Script disabled'
+#   17: '1'
+#   18: '2'
+#   19: 'Script enabled'
+#   20: 0.01
+#   21: 0.0001
+#   22: ('axis',)
+#   23: ('dtype',)
+#   24: (0, 1)
+# Names:
+#    0: pyautogui
+#    1: size
+#    2: int
+#    3: mss
+#    4: time
+#    5: keyboard
+#    6: is_pressed
+#    7: print
+#    8: sleep
+#    9: np
+#   10: array
+#   11: grab
+#   12: any
+#   13: copy
+#   14: range
+#   15: roll
+#   16: sum
+#   17: label
+#   18: zeros_like
+#   19: bool
+#   20: argwhere
+#   21: max
+#   22: min
+#   23: click
+# Varnames:
+#	screen_width, screen_height, start_x, end_x, start_y, end_y, monitor, RED_MIN, RED_MAX_GB, BLACK_MAX_RGB, VERTICAL_HEIGHT, half, MIN_RED_WIDTH, MIN_RED_PIXELS, NEIGHBOR_DISTANCE, MAX_BLACK_HEIGHT, active, disabled_by_3, last_toggle_time, TOGGLE_DELAY, CLICK_COOLDOWN, last_click_time, sct, now, img, b, g, r, red_mask, black_mask, vertical_red, i, horizontal_sum, valid_cols, labeled, num_features, red_neighbors, dx, dy, target_mask, labeled_black, num_black, positions, y_coords, height, y, x
+# Local variables:
+#    0: screen_width
+#    1: screen_height
+#    2: start_x
+#    3: end_x
+#    4: start_y
+#    5: end_y
+#    6: monitor
+#    7: RED_MIN
+#    8: RED_MAX_GB
+#    9: BLACK_MAX_RGB
+#   10: VERTICAL_HEIGHT
+#   11: half
+#   12: MIN_RED_WIDTH
+#   13: MIN_RED_PIXELS
+#   14: NEIGHBOR_DISTANCE
+#   15: MAX_BLACK_HEIGHT
+#   16: active
+#   17: disabled_by_3
+#   18: last_toggle_time
+#   19: TOGGLE_DELAY
+#   20: CLICK_COOLDOWN
+#   21: last_click_time
+#   22: sct
+#   23: now
+#   24: img
+#   25: b
+#   26: g
+#   27: r
+#   28: red_mask
+#   29: black_mask
+#   30: vertical_red
+#   31: i
+#   32: horizontal_sum
+#   33: valid_cols
+#   34: labeled
+#   35: num_features
+#   36: red_neighbors
+#   37: dx
+#   38: dy
+#   39: target_mask
+#   40: labeled_black
+#   41: num_black
+#   42: positions
+#   43: y_coords
+#   44: height
+#   45: y
+#   46: x
+  9:           0 RESUME               0
+
+ 10:           2 LOAD_GLOBAL          (pyautogui)
+              12 LOAD_ATTR            (size)
+              32 PUSH_NULL
+              34 CALL                 0
+              42 UNPACK_SEQUENCE      2
+              46 STORE_FAST_STORE_FAST (screen_width, screen_height)
+
+ 12:          48 LOAD_GLOBAL          (NULL + int)
+              58 LOAD_FAST            (screen_width)
+              60 LOAD_CONST           (0.2)
+              62 BINARY_OP            (*)
+              66 CALL                 1
+              74 STORE_FAST           (start_x)
+
+ 13:          76 LOAD_GLOBAL          (NULL + int)
+              86 LOAD_FAST            (screen_width)
+              88 LOAD_CONST           (0.8)
+              90 BINARY_OP            (*)
+              94 CALL                 1
+             102 STORE_FAST           (end_x)
+
+ 14:         104 LOAD_GLOBAL          (NULL + int)
+             114 LOAD_FAST            (screen_height)
+             116 LOAD_CONST           (0.2)
+             118 BINARY_OP            (*)
+             122 CALL                 1
+             130 STORE_FAST           (start_y)
+
+ 15:         132 LOAD_GLOBAL          (NULL + int)
+             142 LOAD_FAST            (screen_height)
+             144 LOAD_CONST           (0.8)
+             146 BINARY_OP            (*)
+             150 CALL                 1
+             158 STORE_FAST           (end_y)
+
+ 18:         160 LOAD_FAST            (start_y)
+
+ 19:         162 LOAD_FAST            (start_x)
+
+ 20:         164 LOAD_FAST_LOAD_FAST  (end_x, start_x)
+             166 BINARY_OP            (-)
+
+ 21:         170 LOAD_FAST_LOAD_FAST  (end_y, start_y)
+             172 BINARY_OP            (-)
+
+ 17:         176 LOAD_CONST           (('top', 'left', 'width', 'height'))
+             178 BUILD_CONST_KEY_MAP  4
+             180 STORE_FAST           (monitor)
+
+ 24:         182 LOAD_CONST           (255)
+             184 STORE_FAST           (RED_MIN)
+
+ 25:         186 LOAD_CONST           (0)
+             188 STORE_FAST           (RED_MAX_GB)
+
+ 26:         190 LOAD_CONST           (0)
+             192 STORE_FAST           (BLACK_MAX_RGB)
+
+ 27:         194 LOAD_CONST           (5)
+             196 STORE_FAST           (VERTICAL_HEIGHT)
+
+ 28:         198 LOAD_FAST            (VERTICAL_HEIGHT)
+             200 LOAD_CONST           (1)
+             202 BINARY_OP            (//)
+             206 STORE_FAST           (half)
+
+ 29:         208 LOAD_CONST           (0.85)
+             210 STORE_FAST           (MIN_RED_WIDTH)
+
+ 30:         212 LOAD_CONST           (0.85)
+             214 STORE_FAST           (MIN_RED_PIXELS)
+
+ 31:         216 LOAD_CONST           (2)
+             218 STORE_FAST           (NEIGHBOR_DISTANCE)
+
+ 32:         220 LOAD_CONST           (14.75)
+             222 STORE_FAST           (MAX_BLACK_HEIGHT)
+
+ 34:         224 LOAD_CONST           (True)
+             226 STORE_FAST           (active)
+
+ 35:         228 LOAD_CONST           (False)
+             230 STORE_FAST           (disabled_by_3)
+
+ 36:         232 LOAD_CONST           (0)
+             234 STORE_FAST           (last_toggle_time)
+
+ 37:         236 LOAD_CONST           (0.3)
+             238 STORE_FAST           (TOGGLE_DELAY)
+
+ 38:         240 LOAD_CONST           (0.25)
+             242 STORE_FAST           (CLICK_COOLDOWN)
+
+ 39:         244 LOAD_CONST           (0)
+             246 STORE_FAST           (last_click_time)
+
+ 41:         248 LOAD_GLOBAL          (mss)
+             258 LOAD_ATTR            (mss)
+             278 PUSH_NULL
+             280 CALL                 0
+             288 BEFORE_WITH
+             290 STORE_FAST           (sct)
+
+ 42:         292 NOP
+
+ 43:         294 LOAD_GLOBAL          (time)
+             304 LOAD_ATTR            (time)
+             324 PUSH_NULL
+             326 CALL                 0
+             334 STORE_FAST           (now)
+
+ 45:         336 LOAD_GLOBAL          (keyboard)
+             346 LOAD_ATTR            (is_pressed)
+             366 PUSH_NULL
+             368 LOAD_CONST           ("3")
+             370 CALL                 1
+             378 TO_BOOL
+             386 POP_JUMP_IF_FALSE    (to 442)
+
+ 46:         390 LOAD_FAST            (now)
+             392 LOAD_FAST            (last_toggle_time)
+             394 BINARY_OP            (-)
+             398 LOAD_FAST            (TOGGLE_DELAY)
+             400 COMPARE_OP           (>)
+             404 POP_JUMP_IF_FALSE    (to 442)
+
+ 47:         408 LOAD_CONST           (False)
+             410 STORE_FAST           (active)
+
+ 48:         412 LOAD_CONST           (True)
+             414 STORE_FAST           (disabled_by_3)
+
+ 49:         416 LOAD_FAST            (now)
+             418 STORE_FAST           (last_toggle_time)
+
+ 50:         420 LOAD_GLOBAL          (NULL + print)
+             430 LOAD_CONST           ("Script disabled")
+             432 CALL                 1
+             440 POP_TOP
+
+ 52:     >>  442 LOAD_FAST            (disabled_by_3)
+             444 TO_BOOL
+             452 POP_JUMP_IF_FALSE    (to 630)
+             456 LOAD_FAST            (active)
+             458 TO_BOOL
+             466 POP_JUMP_IF_TRUE     (to 630)
+
+ 53:         470 LOAD_FAST            (now)
+             472 LOAD_FAST            (last_toggle_time)
+             474 BINARY_OP            (-)
+             478 LOAD_FAST            (TOGGLE_DELAY)
+             480 COMPARE_OP           (>)
+             484 POP_JUMP_IF_FALSE    (to 630)
+
+ 54:         488 LOAD_GLOBAL          (keyboard)
+             498 LOAD_ATTR            (is_pressed)
+             518 PUSH_NULL
+             520 LOAD_CONST           ("1")
+             522 CALL                 1
+             530 TO_BOOL
+             538 POP_JUMP_IF_TRUE     (to 596)
+             542 LOAD_GLOBAL          (keyboard)
+             552 LOAD_ATTR            (is_pressed)
+             572 PUSH_NULL
+             574 LOAD_CONST           ("2")
+             576 CALL                 1
+             584 TO_BOOL
+             592 POP_JUMP_IF_FALSE    (to 630)
+
+ 55:     >>  596 LOAD_CONST           (True)
+             598 STORE_FAST           (active)
+
+ 56:         600 LOAD_CONST           (False)
+             602 STORE_FAST           (disabled_by_3)
+
+ 57:         604 LOAD_FAST            (now)
+             606 STORE_FAST           (last_toggle_time)
+
+ 58:         608 LOAD_GLOBAL          (NULL + print)
+             618 LOAD_CONST           ("Script enabled")
+             620 CALL                 1
+             628 POP_TOP
+
+ 60:     >>  630 LOAD_FAST            (active)
+             632 TO_BOOL
+             640 POP_JUMP_IF_TRUE     (to 692)
+
+ 61:         644 LOAD_GLOBAL          (time)
+             654 LOAD_ATTR            (sleep)
+             674 PUSH_NULL
+             676 LOAD_CONST           (0.01)
+             678 CALL                 1
+             686 POP_TOP
+
+ 62:         688 JUMP_BACKWARD        (to 292)
+
+ 64:     >>  692 LOAD_GLOBAL          (np)
+             702 LOAD_ATTR            (array)
+             722 PUSH_NULL
+             724 LOAD_FAST            (sct)
+             726 LOAD_ATTR            (NULL|self + grab)
+             746 LOAD_FAST            (monitor)
+             748 CALL                 1
+             756 CALL                 1
+             764 STORE_FAST           (img)
+
+ 65:         766 LOAD_FAST            (img)
+             768 LOAD_CONST           (None)
+             770 LOAD_CONST           (None)
+             772 BUILD_SLICE          2
+             774 LOAD_CONST           (None)
+             776 LOAD_CONST           (None)
+             778 BUILD_SLICE          2
+             780 LOAD_CONST           (0)
+             782 BUILD_TUPLE          3
+             784 BINARY_SUBSCR
+             788 LOAD_FAST            (img)
+             790 LOAD_CONST           (None)
+             792 LOAD_CONST           (None)
+             794 BUILD_SLICE          2
+             796 LOAD_CONST           (None)
+             798 LOAD_CONST           (None)
+             800 BUILD_SLICE          2
+             802 LOAD_CONST           (1)
+             804 BUILD_TUPLE          3
+             806 BINARY_SUBSCR
+             810 LOAD_FAST            (img)
+             812 LOAD_CONST           (None)
+             814 LOAD_CONST           (None)
+             816 BUILD_SLICE          2
+             818 LOAD_CONST           (None)
+             820 LOAD_CONST           (None)
+             822 BUILD_SLICE          2
+             824 LOAD_CONST           (2)
+             826 BUILD_TUPLE          3
+             828 BINARY_SUBSCR
+             832 STORE_FAST           (r)
+             834 STORE_FAST           (g)
+             836 STORE_FAST           (b)
+
+ 67:         838 LOAD_FAST            (r)
+             840 LOAD_FAST            (RED_MIN)
+             842 COMPARE_OP           (>=)
+             846 LOAD_FAST            (g)
+             848 LOAD_FAST            (RED_MAX_GB)
+             850 COMPARE_OP           (<=)
+             854 BINARY_OP            (&)
+             858 LOAD_FAST            (b)
+             860 LOAD_FAST            (RED_MAX_GB)
+             862 COMPARE_OP           (<=)
+             866 BINARY_OP            (&)
+             870 STORE_FAST           (red_mask)
+
+ 68:         872 LOAD_FAST            (r)
+             874 LOAD_FAST            (BLACK_MAX_RGB)
+             876 COMPARE_OP           (<=)
+             880 LOAD_FAST            (g)
+             882 LOAD_FAST            (BLACK_MAX_RGB)
+             884 COMPARE_OP           (<=)
+             888 BINARY_OP            (&)
+             892 LOAD_FAST            (b)
+             894 LOAD_FAST            (BLACK_MAX_RGB)
+             896 COMPARE_OP           (<=)
+             900 BINARY_OP            (&)
+             904 STORE_FAST           (black_mask)
+
+ 70:         906 LOAD_FAST            (black_mask)
+             908 LOAD_ATTR            (NULL|self + any)
+             928 CALL                 0
+             936 TO_BOOL
+             944 POP_JUMP_IF_FALSE    (to 1040)
+             948 LOAD_FAST            (red_mask)
+             950 LOAD_ATTR            (NULL|self + any)
+             970 CALL                 0
+             978 TO_BOOL
+             986 POP_JUMP_IF_TRUE     (to 1040)
+
+ 71:         990 LOAD_GLOBAL          (time)
+            1000 LOAD_ATTR            (sleep)
+            1020 PUSH_NULL
+            1022 LOAD_CONST           (0.0001)
+            1024 CALL                 1
+            1032 POP_TOP
+
+ 72:        1034 EXTENDED_ARG         (256)
+            1036 JUMP_BACKWARD        (to 292)
+
+ 74:     >> 1040 LOAD_FAST            (red_mask)
+            1042 LOAD_ATTR            (NULL|self + copy)
+            1062 CALL                 0
+            1070 STORE_FAST           (vertical_red)
+
+ 75:        1072 LOAD_GLOBAL          (NULL + range)
+            1082 LOAD_CONST           (1)
+            1084 LOAD_FAST            (half)
+            1086 LOAD_CONST           (1)
+            1088 BINARY_OP            (+)
+         >> 1092 CALL                 2
+            1100 GET_ITER
+            1102 FOR_ITER             (to 1214)
+            1106 STORE_FAST           (i)
+
+ 76:        1108 LOAD_FAST            (vertical_red)
+            1110 LOAD_GLOBAL          (np)
+            1120 LOAD_ATTR            (roll)
+            1140 PUSH_NULL
+            1142 LOAD_FAST            (red_mask)
+            1144 LOAD_FAST            (i)
+            1146 LOAD_CONST           (0)
+            1148 LOAD_CONST           (('axis',))
+            1150 CALL_KW              3
+            1152 BINARY_OP            (&=)
+            1156 STORE_FAST           (vertical_red)
+
+ 77:        1158 LOAD_FAST            (vertical_red)
+            1160 LOAD_GLOBAL          (np)
+            1170 LOAD_ATTR            (roll)
+            1190 PUSH_NULL
+            1192 LOAD_FAST            (red_mask)
+            1194 LOAD_FAST            (i)
+            1196 UNARY_NEGATIVE
+            1198 LOAD_CONST           (0)
+            1200 LOAD_CONST           (('axis',))
+            1202 CALL_KW              3
+            1204 BINARY_OP            (&=)
+            1208 STORE_FAST           (vertical_red)
+            1210 JUMP_BACKWARD        (to 1102)
+
+ 75:     >> 1214 END_FOR
+            1216 POP_TOP
+
+ 79:        1218 LOAD_CONST           (False)
+            1220 LOAD_FAST            (vertical_red)
+            1222 LOAD_CONST           (None)
+            1224 LOAD_FAST            (half)
+            1226 BUILD_SLICE          2
+            1228 LOAD_CONST           (None)
+            1230 LOAD_CONST           (None)
+            1232 BUILD_SLICE          2
+            1234 BUILD_TUPLE          2
+            1236 STORE_SUBSCR
+
+ 80:        1240 LOAD_CONST           (False)
+            1242 LOAD_FAST            (vertical_red)
+            1244 LOAD_FAST            (half)
+            1246 UNARY_NEGATIVE
+            1248 LOAD_CONST           (None)
+            1250 BUILD_SLICE          2
+            1252 LOAD_CONST           (None)
+            1254 LOAD_CONST           (None)
+            1256 BUILD_SLICE          2
+            1258 BUILD_TUPLE          2
+            1260 STORE_SUBSCR
+
+ 82:        1264 LOAD_FAST            (vertical_red)
+            1266 LOAD_ATTR            (NULL|self + sum)
+            1286 LOAD_CONST           (0)
+            1288 LOAD_CONST           (('axis',))
+            1290 CALL_KW              1
+            1292 STORE_FAST           (horizontal_sum)
+
+ 83:        1294 LOAD_FAST            (horizontal_sum)
+            1296 LOAD_FAST            (MIN_RED_WIDTH)
+            1298 COMPARE_OP           (>=)
+            1302 STORE_FAST           (valid_cols)
+
+ 84:        1304 LOAD_CONST           (False)
+            1306 LOAD_FAST            (vertical_red)
+            1308 LOAD_CONST           (None)
+            1310 LOAD_CONST           (None)
+            1312 BUILD_SLICE          2
+            1314 LOAD_FAST            (valid_cols)
+            1316 UNARY_INVERT
+            1318 BUILD_TUPLE          2
+            1320 STORE_SUBSCR
+
+ 86:        1324 LOAD_GLOBAL          (NULL + label)
+            1334 LOAD_FAST            (vertical_red)
+            1336 CALL                 1
+            1344 UNPACK_SEQUENCE      2
+            1348 STORE_FAST           (labeled)
+            1350 STORE_FAST           (num_features)
+
+ 88:        1352 LOAD_GLOBAL          (NULL + range)
+            1362 LOAD_CONST           (1)
+            1364 LOAD_FAST            (num_features)
+            1366 LOAD_CONST           (1)
+            1368 BINARY_OP            (+)
+            1372 CALL                 2
+            1380 GET_ITER
+            1382 FOR_ITER             (to 1470)
+            1386 STORE_FAST           (i)
+
+ 89:        1388 LOAD_GLOBAL          (np)
+            1398 LOAD_ATTR            (sum)
+            1418 PUSH_NULL
+            1420 LOAD_FAST            (labeled)
+            1422 LOAD_FAST            (i)
+            1424 COMPARE_OP           (==)
+            1428 CALL                 1
+            1436 LOAD_FAST            (MIN_RED_PIXELS)
+            1438 COMPARE_OP           (<)
+            1442 POP_JUMP_IF_TRUE     (to 1450)
+            1446 JUMP_BACKWARD        (to 1382)
+
+ 90:     >> 1450 LOAD_CONST           (False)
+            1452 LOAD_FAST            (vertical_red)
+            1454 LOAD_FAST            (labeled)
+            1456 LOAD_FAST            (i)
+            1458 COMPARE_OP           (==)
+            1462 STORE_SUBSCR
+            1466 JUMP_BACKWARD        (to 1382)
+
+ 88:     >> 1470 END_FOR
+            1472 POP_TOP
+
+ 92:        1474 LOAD_FAST            (vertical_red)
+            1476 LOAD_ATTR            (NULL|self + any)
+            1496 CALL                 0
+            1504 TO_BOOL
+            1512 POP_JUMP_IF_TRUE     (to 1566)
+
+ 93:        1516 LOAD_GLOBAL          (time)
+            1526 LOAD_ATTR            (sleep)
+            1546 PUSH_NULL
+            1548 LOAD_CONST           (0.0001)
+            1550 CALL                 1
+         >> 1558 POP_TOP
+
+ 94:        1560 EXTENDED_ARG         (512)
+            1562 JUMP_BACKWARD        (to 292)
+
+ 96:     >> 1566 LOAD_GLOBAL          (np)
+            1576 LOAD_ATTR            (zeros_like)
+            1596 PUSH_NULL
+            1598 LOAD_FAST            (vertical_red)
+            1600 LOAD_GLOBAL          (bool)
+            1610 LOAD_CONST           (('dtype',))
+            1612 CALL_KW              2
+            1614 STORE_FAST           (red_neighbors)
+
+ 97:        1616 LOAD_GLOBAL          (NULL + range)
+            1626 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1628 UNARY_NEGATIVE
+            1630 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1632 LOAD_CONST           (1)
+            1634 BINARY_OP            (+)
+            1638 CALL                 2
+            1646 GET_ITER
+            1648 FOR_ITER             (to 1786)
+            1652 STORE_FAST           (dx)
+
+ 98:        1654 LOAD_GLOBAL          (NULL + range)
+            1664 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1666 UNARY_NEGATIVE
+            1668 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1670 LOAD_CONST           (1)
+            1672 BINARY_OP            (+)
+            1676 CALL                 2
+            1684 GET_ITER
+            1686 FOR_ITER             (to 1778)
+            1690 STORE_FAST           (dy)
+
+ 99:        1692 LOAD_FAST            (dx)
+            1694 LOAD_CONST           (0)
+            1696 COMPARE_OP           (==)
+            1700 POP_JUMP_IF_FALSE    (to 1720)
+            1704 LOAD_FAST            (dy)
+            1706 LOAD_CONST           (0)
+            1708 COMPARE_OP           (==)
+            1712 POP_JUMP_IF_FALSE    (to 1720)
+
+100:        1716 JUMP_BACKWARD        (to 1686)
+
+101:     >> 1720 LOAD_FAST            (red_neighbors)
+            1722 LOAD_GLOBAL          (np)
+            1732 LOAD_ATTR            (roll)
+            1752 PUSH_NULL
+         >> 1754 LOAD_FAST            (vertical_red)
+            1756 LOAD_FAST            (dy)
+            1758 LOAD_FAST            (dx)
+            1760 BUILD_TUPLE          2
+            1762 LOAD_CONST           ((0, 1))
+            1764 LOAD_CONST           (('axis',))
+            1766 CALL_KW              3
+            1768 BINARY_OP            (|=)
+            1772 STORE_FAST           (red_neighbors)
+            1774 JUMP_BACKWARD        (to 1686)
+
+ 98:     >> 1778 END_FOR
+            1780 POP_TOP
+            1782 JUMP_BACKWARD        (to 1648)
+
+ 97:     >> 1786 END_FOR
+         >> 1788 POP_TOP
+
+103:        1790 LOAD_CONST           (False)
+            1792 LOAD_FAST            (red_neighbors)
+            1794 LOAD_CONST           (None)
+            1796 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1798 BUILD_SLICE          2
+            1800 LOAD_CONST           (None)
+            1802 LOAD_CONST           (None)
+            1804 BUILD_SLICE          2
+            1806 BUILD_TUPLE          2
+            1808 STORE_SUBSCR
+
+104:        1812 LOAD_CONST           (False)
+            1814 LOAD_FAST            (red_neighbors)
+            1816 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1818 UNARY_NEGATIVE
+            1820 LOAD_CONST           (None)
+            1822 BUILD_SLICE          2
+            1824 LOAD_CONST           (None)
+            1826 LOAD_CONST           (None)
+            1828 BUILD_SLICE          2
+            1830 BUILD_TUPLE          2
+            1832 STORE_SUBSCR
+
+105:        1836 LOAD_CONST           (False)
+            1838 LOAD_FAST            (red_neighbors)
+            1840 LOAD_CONST           (None)
+            1842 LOAD_CONST           (None)
+            1844 BUILD_SLICE          2
+            1846 LOAD_CONST           (None)
+            1848 LOAD_FAST            (NEIGHBOR_DISTANCE)
+            1850 BUILD_SLICE          2
+            1852 BUILD_TUPLE          2
+            1854 STORE_SUBSCR
+
+106:        1858 LOAD_CONST           (False)
+            1860 LOAD_FAST            (red_neighbors)
+            1862 LOAD_CONST           (None)
+            1864 LOAD_CONST           (None)
+            1866 BUILD_SLICE          2
+            1868 LOAD_FAST            (NEIGHBOR_DISTANCE)
+         >> 1870 UNARY_NEGATIVE
+            1872 LOAD_CONST           (None)
+            1874 BUILD_SLICE          2
+            1876 BUILD_TUPLE          2
+            1878 STORE_SUBSCR
+
+108:        1882 LOAD_FAST            (black_mask)
+            1884 LOAD_FAST            (red_neighbors)
+            1886 BINARY_OP            (&)
+            1890 STORE_FAST           (target_mask)
+
+110:        1892 LOAD_GLOBAL          (NULL + label)
+            1902 LOAD_FAST            (target_mask)
+            1904 CALL                 1
+            1912 UNPACK_SEQUENCE      2
+            1916 STORE_FAST           (labeled_black)
+            1918 STORE_FAST           (num_black)
+
+112:        1920 LOAD_GLOBAL          (NULL + range)
+            1930 LOAD_CONST           (1)
+            1932 LOAD_FAST            (num_black)
+            1934 LOAD_CONST           (1)
+            1936 BINARY_OP            (+)
+            1940 CALL                 2
+            1948 GET_ITER
+            1950 FOR_ITER             (to 2168)
+            1954 STORE_FAST           (i)
+
+113:        1956 LOAD_GLOBAL          (np)
+            1966 LOAD_ATTR            (argwhere)
+            1986 PUSH_NULL
+            1988 LOAD_FAST            (labeled_black)
+            1990 LOAD_FAST            (i)
+            1992 COMPARE_OP           (==)
+            1996 CALL                 1
+            2004 STORE_FAST           (positions)
+
+114:        2006 LOAD_FAST            (positions)
+            2008 LOAD_ATTR            (size)
+            2028 LOAD_CONST           (0)
+            2030 COMPARE_OP           (==)
+            2034 POP_JUMP_IF_FALSE    (to 2042)
+
+115:        2038 JUMP_BACKWARD        (to 1950)
+
+116:     >> 2042 LOAD_FAST            (positions)
+            2044 LOAD_CONST           (None)
+            2046 LOAD_CONST           (None)
+            2048 BUILD_SLICE          2
+            2050 LOAD_CONST           (0)
+            2052 BUILD_TUPLE          2
+            2054 BINARY_SUBSCR
+            2058 STORE_FAST           (y_coords)
+
+117:        2060 LOAD_FAST            (y_coords)
+            2062 LOAD_ATTR            (NULL|self + max)
+            2082 CALL                 0
+            2090 LOAD_FAST            (y_coords)
+            2092 LOAD_ATTR            (NULL|self + min)
+            2112 CALL                 0
+            2120 BINARY_OP            (-)
+            2124 LOAD_CONST           (1)
+            2126 BINARY_OP            (+)
+            2130 STORE_FAST           (height)
+
+118:        2132 LOAD_FAST            (height)
+         >> 2134 LOAD_FAST            (MAX_BLACK_HEIGHT)
+            2136 COMPARE_OP           (>)
+            2140 POP_JUMP_IF_TRUE     (to 2148)
+            2144 JUMP_BACKWARD        (to 1950)
+
+119:     >> 2148 LOAD_CONST           (False)
+            2150 LOAD_FAST            (target_mask)
+            2152 LOAD_FAST            (labeled_black)
+            2154 LOAD_FAST            (i)
+            2156 COMPARE_OP           (==)
+            2160 STORE_SUBSCR
+            2164 JUMP_BACKWARD        (to 1950)
+
+112:     >> 2168 END_FOR
+            2170 POP_TOP
+
+121:        2172 LOAD_FAST            (target_mask)
+            2174 LOAD_ATTR            (NULL|self + any)
+            2194 CALL                 0
+            2202 TO_BOOL
+            2210 POP_JUMP_IF_FALSE    (to 2350)
+
+122:        2214 LOAD_FAST            (now)
+            2216 LOAD_FAST            (last_click_time)
+            2218 BINARY_OP            (-)
+            2222 LOAD_FAST            (CLICK_COOLDOWN)
+            2224 COMPARE_OP           (>)
+            2228 POP_JUMP_IF_FALSE    (to 2350)
+
+123:        2232 LOAD_GLOBAL          (np)
+            2242 LOAD_ATTR            (argwhere)
+            2262 PUSH_NULL
+            2264 LOAD_FAST            (target_mask)
+            2266 CALL                 1
+            2274 LOAD_CONST           (0)
+            2276 BINARY_SUBSCR
+            2280 UNPACK_SEQUENCE      2
+            2284 STORE_FAST           (y)
+            2286 STORE_FAST           (x)
+
+124:        2288 LOAD_GLOBAL          (pyautogui)
+            2298 LOAD_ATTR            (click)
+            2318 PUSH_NULL
+            2320 LOAD_FAST            (start_x)
+            2322 LOAD_FAST            (x)
+            2324 BINARY_OP            (+)
+            2328 LOAD_FAST            (start_y)
+            2330 LOAD_FAST            (y)
+            2332 BINARY_OP            (+)
+            2336 CALL                 2
+            2344 POP_TOP
+
+125:     >> 2346 LOAD_FAST            (now)
+            2348 STORE_FAST           (last_click_time)
+
+127:     >> 2350 LOAD_GLOBAL          (time)
+            2360 LOAD_ATTR            (sleep)
+            2380 PUSH_NULL
+            2382 LOAD_CONST           (0.0001)
+            2384 CALL                 1
+            2392 POP_TOP
+
+ 42:        2394 EXTENDED_ARG         (1024)
+            2396 JUMP_BACKWARD        (to 294)
+
+ 41:     >> 2400 PUSH_EXC_INFO
+            2402 WITH_EXCEPT_START    0
+            2404 TO_BOOL
+            2412 POP_JUMP_IF_TRUE     (to 2418)
+            2416 RERAISE              2
+         >> 2418 POP_TOP
+            2420 POP_EXCEPT
+            2422 POP_TOP
+            2424 POP_TOP
+            2426 RETURN_CONST         (None)
+         >> 2428 COPY                 3
+            2430 POP_EXCEPT
+            2432 RERAISE              1
+
+ExceptionTable:
+  290 to 1440 -> 2400 [1] lasti
+  1450 to 2138 -> 2400 [1] lasti
+  2148 to 2398 -> 2400 [1] lasti
+  2400 to 2418 -> 2428 [3] lasti
