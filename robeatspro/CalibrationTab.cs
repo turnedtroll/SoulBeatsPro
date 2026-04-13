@@ -401,9 +401,15 @@ internal sealed class CalibrationTab : UserControl
                     g.DrawLine(pen, dx - 5, dy, dx + 5, dy);
                     g.DrawLine(pen, dx, dy - 5, dx, dy + 5);
 
-                    int sh = Math.Max(1, (int)(SampleHalf * Scale));
-                    using var innerPen = new Pen(kind == "tap" ? Color.White : Color.LightGray, 1);
-                    g.DrawRectangle(innerPen, dx - sh, dy - sh, sh * 2, sh * 2);
+                    // Visible sample patch — actual (2*SampleHalf+1)² area scaled to preview.
+                    int sampleSidePx = (2 * SampleHalf + 1);
+                    int sh = Math.Max(3, (int)Math.Ceiling(sampleSidePx * Scale));
+                    var patchRect = new Rectangle(dx - sh / 2, dy - sh / 2, sh, sh);
+
+                    using (var patchFill = new SolidBrush(Color.FromArgb(80, col)))
+                        g.FillRectangle(patchFill, patchRect);
+                    using (var patchOutline = new Pen(col, 1))
+                        g.DrawRectangle(patchOutline, patchRect);
 
                     string lbl = kind == "tap" ? $"T{LaneNames[i]}" : $"H{LaneNames[i]}";
                     using var font = new Font("MS Sans Serif", 7f);
