@@ -227,6 +227,12 @@ internal sealed class ConfigManager
     public GameModeSettings GameMode => _settings.GameMode;
     public ProfilesSettings Profiles => _settings.Profiles;
 
+    /// <summary>
+    /// Returns the profile for the currently active game. The reference is
+    /// resolved each call — callers must NOT cache it across a game switch,
+    /// since switching games changes which profile this resolves to.
+    /// MacroEngine snapshots Detection/Tuning values in Start() for the run.
+    /// </summary>
     public GameProfile ActiveProfile =>
         GameMode.ActiveGame == "funkyFriday" ? Profiles.FunkyFriday : Profiles.RoBeats;
 
@@ -290,6 +296,7 @@ internal sealed class ConfigManager
         if (hasLegacyDetection) target.Detection = _settings.LegacyDetection!;
         if (hasLegacyTuning)    target.Tuning    = _settings.LegacyTuning!;
 
+        bool coordsMigrated = false;
         if (hasLegacyCoords)
         {
             try
@@ -306,20 +313,33 @@ internal sealed class ConfigManager
                     target.Tap[i]  = new[] { tapArr[i][0].GetInt32(),  tapArr[i][1].GetInt32() };
                     target.Hold[i] = new[] { holdArr[i][0].GetInt32(), holdArr[i][1].GetInt32() };
                 }
+                coordsMigrated = true;
             }
             catch { /* coords.json corrupt — fall through to defaults */ }
         }
 
-        _settings.LegacyDetection = null;
-        _settings.LegacyTuning    = null;
-        SaveSettings();
+        bool migrated = hasLegacyDetection || hasLegacyTuning || coordsMigrated;
+
+        if (migrated)
+        {
+            _settings.LegacyDetection = null;
+            _settings.LegacyTuning    = null;
+            SaveSettings();
+        }
 
         if (hasLegacyCoords)
         {
             try { File.Delete(CoordsPath); } catch { }
         }
 
-        Log.Info($"Migrated legacy settings to profile: {activeGame}");
+        if (migrated)
+        {
+            Log.Info($"Migrated legacy settings to profile: {activeGame}");
+        }
+        else if (hasLegacyCoords)
+        {
+            Log.Info("Discarded corrupt legacy coords.json — using profile defaults");
+        }
     }
 
     public void SaveSettings()
