@@ -2,6 +2,38 @@ using System.Drawing.Imaging;
 
 namespace SoulBeatsPro;
 
+/// <summary>
+/// Per-pixel classification used by the calibration magnifier.
+/// </summary>
+internal enum PixelKind : byte
+{
+    None = 0,
+    White = 1,   // Passes white threshold (note in white/gray mode, or note color in color mode)
+    Gray  = 2    // Passes gray threshold (hold body in white/gray mode, or hold color in color mode)
+}
+
+/// <summary>
+/// Patch analysis result. Pixels[] is row-major (2*half+1) wide, length = (2*half+1)^2.
+/// Pixels can be null if the caller didn't request per-pixel data.
+/// </summary>
+internal readonly struct PatchAnalysis
+{
+    public readonly int WhiteCount;
+    public readonly int GrayCount;
+    public readonly PixelKind[]? Pixels;
+    public readonly int Width;
+    public readonly int Height;
+
+    public PatchAnalysis(int whiteCount, int grayCount, PixelKind[]? pixels, int width, int height)
+    {
+        WhiteCount = whiteCount;
+        GrayCount  = grayCount;
+        Pixels     = pixels;
+        Width      = width;
+        Height     = height;
+    }
+}
+
 /// Fast screen capture and pixel sampling using GDI+.
 /// Supports two detection modes:
 ///   - WhiteGray (Funky Friday / larpLOLv4): all channels high = note, all channels mid = hold
@@ -229,6 +261,99 @@ internal sealed class ScreenCapture : IDisposable
         {
             _bmp.UnlockBits(data);
         }
+    }
+
+    /// <summary>
+    /// Analyze a (2*half+1) square patch. Honors the active detection mode
+    /// (WhiteGray vs Color-based) so callers don't need to branch.
+    /// If `includePixels` is true, the returned struct includes per-pixel
+    /// classification suitable for rendering the calibration magnifier.
+    /// </summary>
+    public unsafe PatchAnalysis AnalyzePatch(int cx, int cy, int half, bool includePixels)
+    {
+        int x0 = Math.Max(0, cx - half);
+        int y0 = Math.Max(0, cy - half);
+        int x1 = Math.Min(Width - 1, cx + half);
+        int y1 = Math.Min(Height - 1, cy + half);
+        int patchW = 2 * half + 1;
+        int patchH = 2 * half + 1;
+
+        var pixels = includePixels ? new PixelKind[patchW * patchH] : null;
+        int whiteCount = 0;
+        int grayCount  = 0;
+
+        var data = _bmp.LockBits(
+            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
+            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+        try
+        {
+            bool whiteGray = ConfigManager.Instance.IsWhiteGrayMode;
+            var det = ConfigManager.Instance.Detection;
+
+            int whiteMin = det.WhiteGray.WhiteMin;
+            int grayMin  = det.WhiteGray.GrayMin;
+            int grayMax  = det.WhiteGray.GrayMax;
+            int nMinR = det.NoteColor.MinR, nMinG = det.NoteColor.MinG, nMaxB = det.NoteColor.MaxB;
+            int hMinR = det.HoldColor.MinR, hMaxR = det.HoldColor.MaxR;
+            int hMinG = det.HoldColor.MinG, hMaxG = det.HoldColor.MaxG;
+            int hMaxB = det.HoldColor.MaxB,  hMinRG = det.HoldColor.MinRG;
+
+            int stride = data.Stride;
+            byte* ptr = (byte*)data.Scan0;
+            int w = x1 - x0 + 1;
+            int h = y1 - y0 + 1;
+
+            int writeOffsetX = x0 - (cx - half);
+            int writeOffsetY = y0 - (cy - half);
+
+            for (int row = 0; row < h; row++)
+            {
+                byte* line = ptr + row * stride;
+                for (int col = 0; col < w; col++)
+                {
+                    byte b = line[col * 4];
+                    byte g = line[col * 4 + 1];
+                    byte r = line[col * 4 + 2];
+
+                    PixelKind kind = PixelKind.None;
+                    if (whiteGray)
+                    {
+                        if (r >= whiteMin && g >= whiteMin && b >= whiteMin)
+                            kind = PixelKind.White;
+                        else if (r >= grayMin && r <= grayMax &&
+                                 g >= grayMin && g <= grayMax &&
+                                 b >= grayMin && b <= grayMax)
+                            kind = PixelKind.Gray;
+                    }
+                    else
+                    {
+                        if (r >= nMinR && g >= nMinG && b < nMaxB)
+                            kind = PixelKind.White;
+                        else if (r >= hMinR && r <= hMaxR &&
+                                 g >= hMinG && g <= hMaxG &&
+                                 b < hMaxB && (r + g) > hMinRG)
+                            kind = PixelKind.Gray;
+                    }
+
+                    if (kind == PixelKind.White) whiteCount++;
+                    else if (kind == PixelKind.Gray) grayCount++;
+
+                    if (pixels != null)
+                    {
+                        int outX = writeOffsetX + col;
+                        int outY = writeOffsetY + row;
+                        pixels[outY * patchW + outX] = kind;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _bmp.UnlockBits(data);
+        }
+
+        return new PatchAnalysis(whiteCount, grayCount, pixels, patchW, patchH);
     }
 
     public void Dispose()
