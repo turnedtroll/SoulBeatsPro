@@ -51,6 +51,7 @@ internal sealed class MacroEngine
     private readonly double[] _holdReleasedAt = new double[4];
     private readonly double[] _holdArmedAt = new double[4];
     private readonly double[] _holdReleaseStartedAt = new double[4];
+    private readonly int[] _lastNoteCount = new int[4];
     private double _lastToggle;
     private Thread? _thread;
     private volatile bool _stopRequested;
@@ -107,6 +108,7 @@ internal sealed class MacroEngine
         Array.Fill(_holdReleasedAt, 0.0);
         Array.Fill(_holdArmedAt, 0.0);
         Array.Fill(_holdReleaseStartedAt, 0.0);
+        Array.Fill(_lastNoteCount, 0);
         Active = true;
         _lastToggle = 0;
 
@@ -144,6 +146,7 @@ internal sealed class MacroEngine
                     Array.Fill(HoldSawTail, false);
                     Array.Fill(_tapReleaseAt, 0.0);
                     Array.Fill(_holdArmedAt, 0.0);
+                    Array.Fill(_lastNoteCount, 0);
                 }
             }
 
@@ -249,7 +252,7 @@ internal sealed class MacroEngine
                 // ── IDLE ──
                 if (state == LaneState.Idle && now - _holdReleasedAt[i] >= _holdReleaseCooldown)
                 {
-                    if (noteCount >= _minPixels)
+                    if (noteCount >= _minPixels && _lastNoteCount[i] < _minPixels)
                     {
                         if (HoldIncoming[i])
                         {
@@ -268,12 +271,18 @@ internal sealed class MacroEngine
                 // ── TAPPED ──
                 else if (state == LaneState.Tapped)
                 {
-                    if (noteCount < _minPixels && _tapReleaseAt[i] == 0.0)
+                    bool released    = _tapReleaseAt[i] == 0.0;
+                    bool risingEdge  = noteCount >= _minPixels && _lastNoteCount[i] < _minPixels;
+                    bool cleared     = noteCount < _minPixels;
+
+                    if (released && (cleared || risingEdge))
                     {
                         States[i] = LaneState.Idle;
                         HoldIncoming[i] = false;
                     }
                 }
+
+                _lastNoteCount[i] = noteCount;
             }
 
             Thread.SpinWait(100);
