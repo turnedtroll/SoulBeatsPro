@@ -10,6 +10,8 @@ internal sealed class GamesTab : UserControl
     private readonly RadioButton _rbRoBeats;
     private readonly Label _descLabel;
     private readonly Button _applyDefaultsBtn;
+    private readonly ComboBox _accuracyCombo;
+    private readonly Label _accuracyLabel;
     private LayoutScaler? _scaler;
 
     public event Action? GameModeChanged;
@@ -139,6 +141,48 @@ internal sealed class GamesTab : UserControl
         };
         grpInfo.Controls.Add(infoLabel);
         Controls.Add(grpInfo);
+
+        // ── Accuracy preset dropdown ────────────────────────────
+        _accuracyLabel = new Label
+        {
+            Text = "Accuracy:",
+            Font = RetroFont,
+            AutoSize = true,
+            Location = new Point(12, 414)
+        };
+        Controls.Add(_accuracyLabel);
+
+        _accuracyCombo = new ComboBox
+        {
+            DropDownStyle = ComboBoxStyle.DropDownList,
+            Font = RetroFont,
+            Location = new Point(80, 410),
+            Size = new Size(160, 22)
+        };
+        Controls.Add(_accuracyCombo);
+
+        RefreshAccuracyCombo();
+        _accuracyCombo.SelectedIndexChanged += AccuracyCombo_Changed;
+    }
+
+    private void RefreshAccuracyCombo()
+    {
+        bool ff = ConfigManager.Instance.IsWhiteGrayMode;
+        var labels = AccuracyPresetTable.GetLabels(ff);
+
+        _accuracyCombo.SelectedIndexChanged -= AccuracyCombo_Changed;
+        _accuracyCombo.Items.Clear();
+        _accuracyCombo.Items.AddRange(labels);
+        _accuracyCombo.SelectedIndex = (int)ConfigManager.Instance.ActiveProfile.AccuracyPreset;
+        _accuracyCombo.SelectedIndexChanged += AccuracyCombo_Changed;
+    }
+
+    private void AccuracyCombo_Changed(object? sender, EventArgs e)
+    {
+        int idx = _accuracyCombo.SelectedIndex;
+        if (idx < 0 || idx > 3) return;
+        ConfigManager.Instance.ActiveProfile.AccuracyPreset = (AccuracyPreset)idx;
+        ConfigManager.Instance.SaveSettings();
     }
 
     private void RbGame_CheckedChanged(object? sender, EventArgs e)
@@ -149,6 +193,7 @@ internal sealed class GamesTab : UserControl
         ConfigManager.Instance.GameMode.ActiveGame = game;
         ConfigManager.Instance.SaveSettings();
         UpdateDescription();
+        RefreshAccuracyCombo();
         GameModeChanged?.Invoke();
     }
 
