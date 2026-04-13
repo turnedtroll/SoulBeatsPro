@@ -27,6 +27,8 @@ internal sealed class CalibrationTab : UserControl
     private readonly Button _btnStartPreview;
     private readonly Button _btnSave;
     private readonly Button _btnRevert;
+    private readonly Button _btnRescan;
+    private bool _rescanRequested;
     private readonly Button[] _tapBtns = new Button[4];
     private readonly Button[] _holdBtns = new Button[4];
 
@@ -40,6 +42,8 @@ internal sealed class CalibrationTab : UserControl
     private bool _isDragging;
     private Point _dragStartScreen;
     private readonly Dictionary<(string, int), Point> _dragStartPts = new();
+    private string _lastSnapMessage = "";
+    private double _lastSnapMessageAt;
 
     private static readonly Color[] LaneColors =
     [
@@ -86,7 +90,13 @@ internal sealed class CalibrationTab : UserControl
         _btnRevert.Location = new Point(178, 6);
         _btnRevert.Click += (_, _) => { (_tapPts, _holdPts) = ConfigManager.Instance.LoadCoords(); RefreshSelectionUI(); };
 
-        _buttonBar.Controls.AddRange([_btnStartPreview, _btnSave, _btnRevert]);
+        _btnRescan = MakeButton("Rescan");
+        _btnRescan.Size = new Size(70, 24);
+        _btnRescan.Location = new Point(244, 6);
+        _btnRescan.Enabled = false;
+        _btnRescan.Click += (_, _) => { _rescanRequested = true; };
+
+        _buttonBar.Controls.AddRange([_btnStartPreview, _btnSave, _btnRevert, _btnRescan]);
 
         // ── Right sidebar ────────────────────────────────────────
         _sidebar = new Panel
@@ -238,6 +248,19 @@ internal sealed class CalibrationTab : UserControl
         };
         _sidebar.Controls.Add(_magnifierLabel);
 
+        sy += 36;
+
+        var snapBtn = new Button
+        {
+            Text = "Snap to Body",
+            Font = sideFont,
+            Size = new Size(btnW, 26),
+            Location = new Point(pad, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace()
+        };
+        snapBtn.Click += (_, _) => SnapSelectedToBody();
+        _sidebar.Controls.Add(snapBtn);
+
         // ── PictureBox ───────────────────────────────────────────
         _pic = new PictureBox
         {
@@ -348,7 +371,9 @@ internal sealed class CalibrationTab : UserControl
         _timer.Tick += Timer_Tick;
         _timer.Start();
         _previewing = true;
+        _rescanRequested = true; // initial snapshot
         _btnStartPreview.Text = "Stop Preview";
+        _btnRescan.Enabled = true;
     }
 
     private void StopPreview()
@@ -357,6 +382,7 @@ internal sealed class CalibrationTab : UserControl
         _capture?.Dispose(); _capture = null;
         _previewing = false;
         _btnStartPreview.Text = "Start Preview";
+        _btnRescan.Enabled = false;
     }
 
     private static Rectangle FindTargetMonitor()
@@ -385,8 +411,12 @@ internal sealed class CalibrationTab : UserControl
     private void Timer_Tick(object? sender, EventArgs e)
     {
         if (_capture == null) return;
-        try { _capture.Grab(); }
-        catch { return; }
+        if (_rescanRequested)
+        {
+            try { _capture.Grab(); }
+            catch { return; }
+            _rescanRequested = false;
+        }
 
         int dw = (int)(_monitorBounds.Width * Scale);
         int dh = (int)(_monitorBounds.Height * Scale);
@@ -494,9 +524,18 @@ internal sealed class CalibrationTab : UserControl
             }
 
             g.FillRectangle(new SolidBrush(Color.FromArgb(200, 0, 0, 0)), 0, 0, dw, 28);
-            string msg = _selected.Count > 0
-                ? $"{_selected.Count} selected  |  Use sidebar arrows or keyboard arrows  |  Shift = 10px"
-                : "Select points in sidebar  |  Ctrl/Shift+Click = multi-select";
+            string msg;
+            double nowSec = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
+            if (!string.IsNullOrEmpty(_lastSnapMessage) && nowSec - _lastSnapMessageAt < 3.0)
+            {
+                msg = _lastSnapMessage;
+            }
+            else
+            {
+                msg = _selected.Count > 0
+                    ? $"{_selected.Count} selected  |  Use sidebar arrows or keyboard arrows  |  Shift = 10px"
+                    : "Select points in sidebar  |  Ctrl/Shift+Click = multi-select";
+            }
             using var barFont = new Font("MS Sans Serif", 8f);
             using var barBrush = new SolidBrush(Color.FromArgb(255, 220, 40));
             g.DrawString(msg, barFont, barBrush, 8, 7);
@@ -603,6 +642,84 @@ internal sealed class CalibrationTab : UserControl
         int g = (int)(a.G * (1 - t) + b.G * t);
         int bl = (int)(a.B * (1 - t) + b.B * t);
         return Color.FromArgb(255, r, g, bl);
+    }
+
+    private void SnapSelectedToBody()
+    {
+        if (_capture == null)
+        {
+            FlashSnapMessage("Start preview first");
+            return;
+        }
+        if (_selected.Count != 1)
+        {
+            FlashSnapMessage("Select exactly one point");
+            return;
+        }
+
+        var (kind, lane) = _selected.First();
+        var pts = kind == "tap" ? _tapPts : _holdPts;
+        var current = pts[lane];
+
+        int curCaptureX = current.X - _monitorBounds.Left;
+        int curCaptureY = current.Y - _monitorBounds.Top;
+
+        bool useWhite = kind == "tap";
+
+        int currentCount = ScoreAt(curCaptureX, curCaptureY, useWhite);
+
+        int bestX = curCaptureX;
+        int bestY = curCaptureY;
+        int bestCount = currentCount;
+
+        const int searchRadius = 15;
+        for (int dyS = -searchRadius; dyS <= searchRadius; dyS++)
+        {
+            for (int dxS = -searchRadius; dxS <= searchRadius; dxS++)
+            {
+                if (dxS == 0 && dyS == 0) continue;
+                int sxS = curCaptureX + dxS;
+                int syS = curCaptureY + dyS;
+                if (sxS < SampleHalf || syS < SampleHalf
+                    || sxS >= _capture.Width - SampleHalf
+                    || syS >= _capture.Height - SampleHalf)
+                    continue;
+
+                int score = ScoreAt(sxS, syS, useWhite);
+                if (score > bestCount)
+                {
+                    bestCount = score;
+                    bestX = sxS;
+                    bestY = syS;
+                }
+            }
+        }
+
+        if (bestCount <= currentCount)
+        {
+            FlashSnapMessage($"Already optimal ({currentCount} px)");
+            return;
+        }
+
+        var snapped = new Point(bestX + _monitorBounds.Left, bestY + _monitorBounds.Top);
+        if (kind == "tap") _tapPts[lane] = snapped;
+        else _holdPts[lane] = snapped;
+
+        FlashSnapMessage($"Snapped {(kind == "tap" ? "T" : "H")}{LaneNames[lane]}: {currentCount} → {bestCount} px");
+        RefreshSelectionUI();
+    }
+
+    private int ScoreAt(int captureX, int captureY, bool useWhite)
+    {
+        if (_capture == null) return 0;
+        var a = _capture.AnalyzePatch(captureX, captureY, SampleHalf, includePixels: false);
+        return useWhite ? a.WhiteCount : a.GrayCount;
+    }
+
+    private void FlashSnapMessage(string msg)
+    {
+        _lastSnapMessage = msg;
+        _lastSnapMessageAt = (DateTime.UtcNow - DateTime.UnixEpoch).TotalSeconds;
     }
 
     // ── Mouse drag on preview ────────────────────────────────────
