@@ -28,6 +28,13 @@ internal sealed class MainTab : UserControl
     private double _lastScreenshotToggle;
     private LayoutScaler? _scaler;
 
+    private const int FpsGreenThreshold = 200;
+    private const int FpsYellowThreshold = 120;
+    private static readonly Color FpsGreenColor  = Color.FromArgb(80, 220, 120);
+    private static readonly Color FpsYellowColor = Color.FromArgb(230, 200, 80);
+    private static readonly Color FpsRedColor    = Color.FromArgb(255, 80, 80);
+    private static readonly Color FpsIdleColor   = Color.FromArgb(160, 160, 170);
+
     public MainTab()
     {
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
@@ -98,7 +105,7 @@ internal sealed class MainTab : UserControl
         {
             Text = "FPS: --",
             Font = new Font("MS Sans Serif", 9f, FontStyle.Bold),
-            ForeColor = Color.FromArgb(160, 160, 170),
+            ForeColor = FpsIdleColor,
             AutoSize = true,
             Location = new Point(14, y),
             TextAlign = ContentAlignment.MiddleLeft,
@@ -536,7 +543,7 @@ internal sealed class MainTab : UserControl
         if (engine == null || !engine.Running)
         {
             _fpsLabel.Text = "FPS: --";
-            _fpsLabel.ForeColor = Color.FromArgb(160, 160, 170);
+            _fpsLabel.ForeColor = FpsIdleColor;
             _fpsWarnLabel.Visible = false;
             return;
         }
@@ -544,19 +551,19 @@ internal sealed class MainTab : UserControl
         int fps = engine.Fps;
         _fpsLabel.Text = $"FPS: {fps}";
 
-        if (fps >= 200)
+        if (fps >= FpsGreenThreshold)
         {
-            _fpsLabel.ForeColor = Color.FromArgb(80, 220, 120);    // green
+            _fpsLabel.ForeColor = FpsGreenColor;
             _fpsWarnLabel.Visible = false;
         }
-        else if (fps >= 120)
+        else if (fps >= FpsYellowThreshold)
         {
-            _fpsLabel.ForeColor = Color.FromArgb(230, 200, 80);    // yellow
+            _fpsLabel.ForeColor = FpsYellowColor;
             _fpsWarnLabel.Visible = false;
         }
         else
         {
-            _fpsLabel.ForeColor = Color.FromArgb(255, 80, 80);     // red
+            _fpsLabel.ForeColor = FpsRedColor;
             _fpsWarnLabel.Text =
                 "Warning: FPS below 120 — macro may miss notes.\n" +
                 "Close background apps or lower Roblox graphics to Quality 1.";
@@ -606,8 +613,9 @@ internal sealed class MainTab : UserControl
         if (disposing)
         {
             _timer.Stop();
-            _fpsTimer?.Stop();
-            _fpsTimer?.Dispose();
+            _timer.Dispose();
+            _fpsTimer.Stop();
+            _fpsTimer.Dispose();
             _debugForm?.Close();
             _engine?.Stop();
         }
