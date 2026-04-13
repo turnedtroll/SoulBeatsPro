@@ -21,6 +21,9 @@ internal sealed class CalibrationTab : UserControl
     private readonly Panel _sidebar;
     private readonly Panel _buttonBar;
     private readonly Label _selLabel;
+    private readonly PictureBox _magnifierPic;
+    private readonly Label _magnifierLabel;
+    private const int MagnifierZoom = 6;
     private readonly Button _btnStartPreview;
     private readonly Button _btnSave;
     private readonly Button _btnRevert;
@@ -35,6 +38,8 @@ internal sealed class CalibrationTab : UserControl
     // Drag state
     private (string kind, int lane)? _dragging;
     private bool _isDragging;
+    private Point _dragStartScreen;
+    private readonly Dictionary<(string, int), Point> _dragStartPts = new();
 
     private static readonly Color[] LaneColors =
     [
@@ -199,6 +204,40 @@ internal sealed class CalibrationTab : UserControl
         _selLabel = new Label { Text = "", Font = sideFont, ForeColor = ConfigManager.Instance.Theme.GetTextColor(), Size = new Size(btnW, 60), Location = new Point(pad, sy) };
         _sidebar.Controls.Add(_selLabel);
 
+        sy += 64;
+
+        var magTitle = new Label
+        {
+            Text = "Pixel Inspector",
+            Font = sideBold,
+            AutoSize = true,
+            Location = new Point(pad, sy)
+        };
+        _sidebar.Controls.Add(magTitle);
+        sy += 18;
+
+        int magDisplay = btnW;
+        _magnifierPic = new PictureBox
+        {
+            Size = new Size(magDisplay, magDisplay),
+            Location = new Point(pad, sy),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(20, 20, 28),
+            SizeMode = PictureBoxSizeMode.StretchImage
+        };
+        _sidebar.Controls.Add(_magnifierPic);
+        sy += magDisplay + 6;
+
+        _magnifierLabel = new Label
+        {
+            Text = "(no point selected)",
+            Font = sideFont,
+            ForeColor = ConfigManager.Instance.Theme.GetTextColor(),
+            Size = new Size(btnW, 32),
+            Location = new Point(pad, sy)
+        };
+        _sidebar.Controls.Add(_magnifierLabel);
+
         // ── PictureBox ───────────────────────────────────────────
         _pic = new PictureBox
         {
@@ -237,10 +276,10 @@ internal sealed class CalibrationTab : UserControl
 
     private void ToggleSelection(string kind, int lane)
     {
-        bool ctrl = (ModifierKeys & Keys.Control) != 0;
+        bool multi = (ModifierKeys & (Keys.Control | Keys.Shift)) != 0;
         var item = (kind, lane);
 
-        if (ctrl)
+        if (multi)
         {
             if (!_selected.Remove(item))
                 _selected.Add(item);
@@ -457,17 +496,113 @@ internal sealed class CalibrationTab : UserControl
             g.FillRectangle(new SolidBrush(Color.FromArgb(200, 0, 0, 0)), 0, 0, dw, 28);
             string msg = _selected.Count > 0
                 ? $"{_selected.Count} selected  |  Use sidebar arrows or keyboard arrows  |  Shift = 10px"
-                : "Select points in sidebar  |  Ctrl+Click = multi-select";
+                : "Select points in sidebar  |  Ctrl/Shift+Click = multi-select";
             using var barFont = new Font("MS Sans Serif", 8f);
             using var barBrush = new SolidBrush(Color.FromArgb(255, 220, 40));
             g.DrawString(msg, barFont, barBrush, 8, 7);
         }
 
         RefreshSelectionUI();
+        RenderMagnifier();
 
         var old = _pic.Image;
         _pic.Image = disp;
         old?.Dispose();
+    }
+
+    private const int MagnifierContextHalf = 12; // 25×25 view window around the point
+
+    private void RenderMagnifier()
+    {
+        if (_capture == null || _selected.Count != 1)
+        {
+            if (_magnifierPic.Image != null)
+            {
+                var prev = _magnifierPic.Image;
+                _magnifierPic.Image = null;
+                prev.Dispose();
+            }
+            _magnifierLabel.Text = _selected.Count == 0 ? "(no point selected)" : "(select one point)";
+            return;
+        }
+
+        var (kind, lane) = _selected.First();
+        var pts = kind == "tap" ? _tapPts : _holdPts;
+        var monitorPt = pts[lane];
+        int captureX = monitorPt.X - _monitorBounds.Left;
+        int captureY = monitorPt.Y - _monitorBounds.Top;
+
+        if (captureX < 0 || captureY < 0 || captureX >= _capture.Width || captureY >= _capture.Height)
+        {
+            _magnifierLabel.Text = "(out of capture bounds)";
+            return;
+        }
+
+        var ctx = _capture.GetContextPatch(captureX, captureY, MagnifierContextHalf);
+        int side = ctx.Width;
+        var bmp = new Bitmap(side, side);
+
+        // Real pixels, tinted where classified.
+        for (int y = 0; y < side; y++)
+        {
+            for (int x = 0; x < side; x++)
+            {
+                int idx = y * side + x;
+                var raw = ctx.Colors[idx];
+                var pk = ctx.Kinds[idx];
+                Color drawn = pk switch
+                {
+                    PixelKind.White => Blend(raw, Color.FromArgb(80, 255, 120), 0.45f),
+                    PixelKind.Gray  => Blend(raw, Color.FromArgb(80, 180, 255), 0.45f),
+                    _               => raw
+                };
+                bmp.SetPixel(x, y, drawn);
+            }
+        }
+
+        // White 1px outline around the actual sample patch (center 2*SampleHalf+1 area).
+        int sampleStart = MagnifierContextHalf - SampleHalf;
+        int sampleEnd   = MagnifierContextHalf + SampleHalf;
+        var outlineColor = Color.White;
+        for (int x = sampleStart; x <= sampleEnd; x++)
+        {
+            bmp.SetPixel(x, sampleStart, outlineColor);
+            bmp.SetPixel(x, sampleEnd, outlineColor);
+        }
+        for (int y = sampleStart; y <= sampleEnd; y++)
+        {
+            bmp.SetPixel(sampleStart, y, outlineColor);
+            bmp.SetPixel(sampleEnd, y, outlineColor);
+        }
+
+        // Center crosshair (1px) — helps align the eye to the exact pixel.
+        bmp.SetPixel(MagnifierContextHalf, MagnifierContextHalf, Color.Red);
+
+        var oldImg = _magnifierPic.Image;
+        _magnifierPic.Image = bmp;
+        oldImg?.Dispose();
+
+        // Counts come from the sample patch (same as HUD).
+        int whiteCount = 0, grayCount = 0;
+        for (int y = sampleStart; y <= sampleEnd; y++)
+        {
+            for (int x = sampleStart; x <= sampleEnd; x++)
+            {
+                var pk = ctx.Kinds[y * side + x];
+                if (pk == PixelKind.White) whiteCount++;
+                else if (pk == PixelKind.Gray) grayCount++;
+            }
+        }
+        int minPx = ConfigManager.Instance.Tuning.MinPixels;
+        _magnifierLabel.Text = $"White: {whiteCount}  Gray: {grayCount}\nMinPixels: {minPx}";
+    }
+
+    private static Color Blend(Color a, Color b, float t)
+    {
+        int r = (int)(a.R * (1 - t) + b.R * t);
+        int g = (int)(a.G * (1 - t) + b.G * t);
+        int bl = (int)(a.B * (1 - t) + b.B * t);
+        return Color.FromArgb(255, r, g, bl);
     }
 
     // ── Mouse drag on preview ────────────────────────────────────
@@ -527,10 +662,21 @@ internal sealed class CalibrationTab : UserControl
             _dragging = hit;
             _isDragging = true;
 
-            // Select the dragged handle
-            bool ctrl = (ModifierKeys & Keys.Control) != 0;
-            if (!ctrl) _selected.Clear();
+            // Select the dragged handle (Ctrl or Shift = add to selection)
+            bool multi = (ModifierKeys & (Keys.Control | Keys.Shift)) != 0;
+            if (!multi && !_selected.Contains(hit.Value)) _selected.Clear();
             _selected.Add(hit.Value);
+
+            // Capture drag anchor + every selected point's starting position for group drag.
+            var dpStart = MouseToDisplay(e.Location);
+            _dragStartScreen = DisplayToScreen(dpStart);
+            _dragStartPts.Clear();
+            foreach (var sel in _selected)
+            {
+                var startPt = sel.kind == "tap" ? _tapPts[sel.lane] : _holdPts[sel.lane];
+                _dragStartPts[sel] = startPt;
+            }
+
             RefreshSelectionUI();
             _pic.Cursor = Cursors.SizeAll;
         }
@@ -542,15 +688,17 @@ internal sealed class CalibrationTab : UserControl
         var dp = MouseToDisplay(e.Location);
         var screenPt = DisplayToScreen(dp);
 
-        // Clamp to monitor bounds
-        int sx = Math.Clamp(screenPt.X, _monitorBounds.Left, _monitorBounds.Right - 1);
-        int sy = Math.Clamp(screenPt.Y, _monitorBounds.Top, _monitorBounds.Bottom - 1);
+        int deltaX = screenPt.X - _dragStartScreen.X;
+        int deltaY = screenPt.Y - _dragStartScreen.Y;
 
-        var (kind, lane) = _dragging.Value;
-        if (kind == "tap")
-            _tapPts[lane] = new Point(sx, sy);
-        else
-            _holdPts[lane] = new Point(sx, sy);
+        foreach (var sel in _selected)
+        {
+            if (!_dragStartPts.TryGetValue(sel, out var start)) continue;
+            int nx = Math.Clamp(start.X + deltaX, _monitorBounds.Left, _monitorBounds.Right - 1);
+            int ny = Math.Clamp(start.Y + deltaY, _monitorBounds.Top, _monitorBounds.Bottom - 1);
+            if (sel.Item1 == "tap") _tapPts[sel.Item2] = new Point(nx, ny);
+            else _holdPts[sel.Item2] = new Point(nx, ny);
+        }
 
         RefreshSelectionUI();
     }

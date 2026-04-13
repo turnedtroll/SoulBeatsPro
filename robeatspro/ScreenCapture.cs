@@ -34,6 +34,26 @@ internal readonly struct PatchAnalysis
     }
 }
 
+/// <summary>
+/// Magnifier view: actual screen pixels (BGRA -> Color) plus per-pixel
+/// classification for the same region. Width/Height = 2*contextHalf+1.
+/// </summary>
+internal readonly struct ContextPatch
+{
+    public readonly System.Drawing.Color[] Colors;
+    public readonly PixelKind[] Kinds;
+    public readonly int Width;
+    public readonly int Height;
+
+    public ContextPatch(System.Drawing.Color[] colors, PixelKind[] kinds, int width, int height)
+    {
+        Colors = colors;
+        Kinds  = kinds;
+        Width  = width;
+        Height = height;
+    }
+}
+
 /// Fast screen capture and pixel sampling using GDI+.
 /// Supports two detection modes:
 ///   - WhiteGray (Funky Friday / larpLOLv4): all channels high = note, all channels mid = hold
@@ -354,6 +374,90 @@ internal sealed class ScreenCapture : IDisposable
         }
 
         return new PatchAnalysis(whiteCount, grayCount, pixels, patchW, patchH);
+    }
+
+    /// <summary>
+    /// Read a (2*contextHalf+1) square of raw screen pixels plus their classification,
+    /// for the calibration magnifier. Pixels outside capture bounds are filled black / None.
+    /// </summary>
+    public unsafe ContextPatch GetContextPatch(int cx, int cy, int contextHalf)
+    {
+        int patchW = 2 * contextHalf + 1;
+        int patchH = 2 * contextHalf + 1;
+        var colors = new System.Drawing.Color[patchW * patchH];
+        var kinds  = new PixelKind[patchW * patchH];
+
+        int x0 = Math.Max(0, cx - contextHalf);
+        int y0 = Math.Max(0, cy - contextHalf);
+        int x1 = Math.Min(Width - 1, cx + contextHalf);
+        int y1 = Math.Min(Height - 1, cy + contextHalf);
+        if (x1 < x0 || y1 < y0) return new ContextPatch(colors, kinds, patchW, patchH);
+
+        var data = _bmp.LockBits(
+            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
+            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+        try
+        {
+            bool whiteGray = ConfigManager.Instance.IsWhiteGrayMode;
+            var det = ConfigManager.Instance.Detection;
+            int whiteMin = det.WhiteGray.WhiteMin;
+            int grayMin  = det.WhiteGray.GrayMin;
+            int grayMax  = det.WhiteGray.GrayMax;
+            int nMinR = det.NoteColor.MinR, nMinG = det.NoteColor.MinG, nMaxB = det.NoteColor.MaxB;
+            int hMinR = det.HoldColor.MinR, hMaxR = det.HoldColor.MaxR;
+            int hMinG = det.HoldColor.MinG, hMaxG = det.HoldColor.MaxG;
+            int hMaxB = det.HoldColor.MaxB,  hMinRG = det.HoldColor.MinRG;
+
+            int stride = data.Stride;
+            byte* ptr = (byte*)data.Scan0;
+            int w = x1 - x0 + 1;
+            int h = y1 - y0 + 1;
+
+            int writeOffsetX = x0 - (cx - contextHalf);
+            int writeOffsetY = y0 - (cy - contextHalf);
+
+            for (int row = 0; row < h; row++)
+            {
+                byte* line = ptr + row * stride;
+                for (int col = 0; col < w; col++)
+                {
+                    byte b = line[col * 4];
+                    byte gChan = line[col * 4 + 1];
+                    byte r = line[col * 4 + 2];
+
+                    PixelKind kind = PixelKind.None;
+                    if (whiteGray)
+                    {
+                        if (r >= whiteMin && gChan >= whiteMin && b >= whiteMin)
+                            kind = PixelKind.White;
+                        else if (r >= grayMin && r <= grayMax &&
+                                 gChan >= grayMin && gChan <= grayMax &&
+                                 b >= grayMin && b <= grayMax)
+                            kind = PixelKind.Gray;
+                    }
+                    else
+                    {
+                        if (r >= nMinR && gChan >= nMinG && b < nMaxB)
+                            kind = PixelKind.White;
+                        else if (r >= hMinR && r <= hMaxR &&
+                                 gChan >= hMinG && gChan <= hMaxG &&
+                                 b < hMaxB && (r + gChan) > hMinRG)
+                            kind = PixelKind.Gray;
+                    }
+
+                    int outIdx = (writeOffsetY + row) * patchW + (writeOffsetX + col);
+                    colors[outIdx] = System.Drawing.Color.FromArgb(255, r, gChan, b);
+                    kinds[outIdx] = kind;
+                }
+            }
+        }
+        finally
+        {
+            _bmp.UnlockBits(data);
+        }
+
+        return new ContextPatch(colors, kinds, patchW, patchH);
     }
 
     public void Dispose()
