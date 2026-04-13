@@ -52,6 +52,10 @@ internal sealed class MacroEngine
     private readonly double[] _holdArmedAt = new double[4];
     private readonly double[] _holdReleaseStartedAt = new double[4];
     private readonly int[] _lastNoteCount = new int[4];
+    private readonly double[] _scheduledPressAt = new double[4];
+    private readonly Random _rng = new();
+    private AccuracyPreset _accuracyPreset;
+    private double _accuracyMaxDelay;    // seconds
     private double _lastToggle;
     private Thread? _thread;
     private volatile bool _stopRequested;
@@ -75,6 +79,8 @@ internal sealed class MacroEngine
         _holdArmGrace = t.HoldArmGrace;
         _holdReleaseGrace = t.HoldReleaseGrace;
         _whiteGrayMode = ConfigManager.Instance.IsWhiteGrayMode;
+        _accuracyPreset = ConfigManager.Instance.ActiveProfile.AccuracyPreset;
+        _accuracyMaxDelay = AccuracyPresetTable.GetMaxDelaySeconds(_accuracyPreset, _whiteGrayMode);
 
         _stopRequested = false;
         Running = true;
@@ -109,6 +115,7 @@ internal sealed class MacroEngine
         Array.Fill(_holdArmedAt, 0.0);
         Array.Fill(_holdReleaseStartedAt, 0.0);
         Array.Fill(_lastNoteCount, 0);
+        Array.Fill(_scheduledPressAt, 0.0);
         Active = true;
         _lastToggle = 0;
 
@@ -147,6 +154,7 @@ internal sealed class MacroEngine
                     Array.Fill(_tapReleaseAt, 0.0);
                     Array.Fill(_holdArmedAt, 0.0);
                     Array.Fill(_lastNoteCount, 0);
+                    Array.Fill(_scheduledPressAt, 0.0);
                 }
             }
 
@@ -163,6 +171,18 @@ internal sealed class MacroEngine
                 {
                     NativeApi.ReleaseKey(i);
                     _tapReleaseAt[i] = 0.0;
+                }
+            }
+
+            // Service scheduled presses (accuracy-preset delays)
+            for (int i = 0; i < 4; i++)
+            {
+                if (_scheduledPressAt[i] > 0 && now >= _scheduledPressAt[i])
+                {
+                    NativeApi.PressKey(i);
+                    _tapReleaseAt[i] = now + _tapKeyDuration;
+                    States[i] = LaneState.Tapped;
+                    _scheduledPressAt[i] = 0.0;
                 }
             }
 
@@ -262,9 +282,28 @@ internal sealed class MacroEngine
                         }
                         else
                         {
-                            NativeApi.PressKey(i);
-                            _tapReleaseAt[i] = now + _tapKeyDuration;
-                            States[i] = LaneState.Tapped;
+                            // Stream safety: a press already pending means the previous
+                            // note hasn't been delivered. Fire it now so it isn't dropped;
+                            // the next frame's rising-edge exit handles this new note.
+                            if (_scheduledPressAt[i] > 0)
+                            {
+                                NativeApi.PressKey(i);
+                                _tapReleaseAt[i] = now + _tapKeyDuration;
+                                States[i] = LaneState.Tapped;
+                                _scheduledPressAt[i] = 0.0;
+                            }
+                            else if (_accuracyMaxDelay <= 0.0)
+                            {
+                                NativeApi.PressKey(i);
+                                _tapReleaseAt[i] = now + _tapKeyDuration;
+                                States[i] = LaneState.Tapped;
+                            }
+                            else
+                            {
+                                double delay = _rng.NextDouble() * _accuracyMaxDelay;
+                                _scheduledPressAt[i] = now + delay;
+                                // Stay in Idle — scheduled-press service will transition us.
+                            }
                         }
                     }
                 }
@@ -293,6 +332,7 @@ internal sealed class MacroEngine
         {
             if (States[i] == LaneState.Holding || _tapReleaseAt[i] > 0)
                 NativeApi.ReleaseKey(i);
+            _scheduledPressAt[i] = 0.0;
         }
         Array.Fill(States, LaneState.Idle);
 
