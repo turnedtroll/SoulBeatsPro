@@ -36,45 +36,6 @@ internal sealed class KeybindSettings
     };
 }
 
-internal sealed class NoteColorSettings
-{
-    [JsonPropertyName("minR")] public int MinR { get; set; } = 200;
-    [JsonPropertyName("minG")] public int MinG { get; set; } = 180;
-    [JsonPropertyName("maxB")] public int MaxB { get; set; } = 80;
-    // Actual picked color (for swatch display; -1 = not set)
-    [JsonPropertyName("pickedR")] public int PickedR { get; set; } = -1;
-    [JsonPropertyName("pickedG")] public int PickedG { get; set; } = -1;
-    [JsonPropertyName("pickedB")] public int PickedB { get; set; } = -1;
-}
-
-internal sealed class HoldColorSettings
-{
-    [JsonPropertyName("minR")] public int MinR { get; set; } = 120;
-    [JsonPropertyName("maxR")] public int MaxR { get; set; } = 200;
-    [JsonPropertyName("minG")] public int MinG { get; set; } = 100;
-    [JsonPropertyName("maxG")] public int MaxG { get; set; } = 180;
-    [JsonPropertyName("maxB")] public int MaxB { get; set; } = 80;
-    [JsonPropertyName("minRG")] public int MinRG { get; set; } = 230;
-    // Actual picked color (for swatch display; -1 = not set)
-    [JsonPropertyName("pickedR")] public int PickedR { get; set; } = -1;
-    [JsonPropertyName("pickedG")] public int PickedG { get; set; } = -1;
-    [JsonPropertyName("pickedB")] public int PickedB { get; set; } = -1;
-}
-
-internal sealed class WhiteGraySettings
-{
-    [JsonPropertyName("whiteMin")] public int WhiteMin { get; set; } = 240;
-    [JsonPropertyName("grayMin")] public int GrayMin { get; set; } = 130;
-    [JsonPropertyName("grayMax")] public int GrayMax { get; set; } = 170;
-}
-
-internal sealed class DetectionSettings
-{
-    [JsonPropertyName("noteColor")] public NoteColorSettings NoteColor { get; set; } = new();
-    [JsonPropertyName("holdColor")] public HoldColorSettings HoldColor { get; set; } = new();
-    [JsonPropertyName("whiteGray")] public WhiteGraySettings WhiteGray { get; set; } = new();
-}
-
 internal sealed class TuningSettings
 {
     [JsonPropertyName("sampleHalf")] public int SampleHalf { get; set; } = 3;
@@ -159,22 +120,18 @@ internal sealed class ThemeSettings
 
 internal sealed class GameModeSettings
 {
-    [JsonPropertyName("activeGame")] public string ActiveGame { get; set; } = "funkyFriday";
-}
+    [JsonPropertyName("activeProfileName")] public string ActiveProfileName { get; set; } = "Funky Friday";
+    /// <summary>Legacy: old "activeGame" key. Read-only, used during migration.</summary>
+    [JsonPropertyName("activeGame")] public string? LegacyActiveGame { get; set; }
 
-internal sealed class GameProfile
-{
-    [JsonPropertyName("detection")] public DetectionSettings Detection { get; set; } = new();
-    [JsonPropertyName("tuning")] public TuningSettings Tuning { get; set; } = new();
-    [JsonPropertyName("tap")] public int[][] Tap { get; set; } = Array.Empty<int[]>();
-    [JsonPropertyName("hold")] public int[][] Hold { get; set; } = Array.Empty<int[]>();
-    [JsonPropertyName("accuracyPreset")] public AccuracyPreset AccuracyPreset { get; set; } = AccuracyPreset.PerfectOnly;
-}
-
-internal sealed class ProfilesSettings
-{
-    [JsonPropertyName("funkyFriday")] public GameProfile FunkyFriday { get; set; } = new();
-    [JsonPropertyName("robeats")] public GameProfile RoBeats { get; set; } = new();
+    /// <summary>TEMP shim for Tasks 7–11 consumers. Maps old "funkyFriday"/"robeats" keys
+    /// to/from the new ActiveProfileName. Not serialized.</summary>
+    [JsonIgnore]
+    public string ActiveGame
+    {
+        get => ActiveProfileName == "RoBeats" ? "robeats" : "funkyFriday";
+        set => ActiveProfileName = value == "robeats" ? "RoBeats" : "Funky Friday";
+    }
 }
 
 internal sealed class AppSettings
@@ -182,11 +139,114 @@ internal sealed class AppSettings
     [JsonPropertyName("keybinds")] public KeybindSettings Keybinds { get; set; } = new();
     [JsonPropertyName("theme")] public ThemeSettings Theme { get; set; } = new();
     [JsonPropertyName("gameMode")] public GameModeSettings GameMode { get; set; } = new();
-    [JsonPropertyName("profiles")] public ProfilesSettings Profiles { get; set; } = new();
+    [JsonPropertyName("profiles")] public List<Profile> Profiles { get; set; } = new();
 
-    // Legacy fields kept for one-shot migration read
-    [JsonPropertyName("detection")] public DetectionSettings? LegacyDetection { get; set; }
-    [JsonPropertyName("tuning")] public TuningSettings? LegacyTuning { get; set; }
+    [JsonPropertyName("detection")] public JsonElement? LegacyDetection { get; set; }
+    [JsonPropertyName("tuning")]    public TuningSettings? LegacyTuning { get; set; }
+    [JsonPropertyName("profiles_legacy_twoProfile")]
+    public JsonElement? LegacyTwoProfile { get; set; }
+
+    public void Migrate()
+    {
+        if (string.IsNullOrEmpty(GameMode.ActiveProfileName) || GameMode.ActiveProfileName == "Funky Friday")
+        {
+            if (!string.IsNullOrEmpty(GameMode.LegacyActiveGame))
+            {
+                GameMode.ActiveProfileName = GameMode.LegacyActiveGame == "robeats" ? "RoBeats" : "Funky Friday";
+                GameMode.LegacyActiveGame = null;
+            }
+        }
+
+        if (LegacyTwoProfile.HasValue && Profiles.Count == 0)
+        {
+            MigrateTwoProfile(LegacyTwoProfile.Value);
+            LegacyTwoProfile = null;
+        }
+
+        if ((LegacyDetection.HasValue || LegacyTuning != null) && Profiles.Count == 0)
+        {
+            SeedBuiltInProfiles();
+            ApplyLegacyFlat();
+            LegacyDetection = null;
+            LegacyTuning = null;
+        }
+
+        if (Profiles.Count == 0)
+        {
+            SeedBuiltInProfiles();
+        }
+    }
+
+    private void SeedBuiltInProfiles()
+    {
+        Profiles.Add(new Profile { Name = "Funky Friday", IsBuiltIn = true, MaxJudgmentMs = 140 });
+        Profiles.Add(new Profile { Name = "RoBeats",      IsBuiltIn = true, MaxJudgmentMs = 150 });
+    }
+
+    private void MigrateTwoProfile(JsonElement el)
+    {
+        if (el.TryGetProperty("funkyFriday", out var ff))
+            Profiles.Add(BuildFromLegacyTwoProfile("Funky Friday", ff, whiteGray: true, maxJudgmentMs: 140));
+        if (el.TryGetProperty("robeats", out var rb))
+            Profiles.Add(BuildFromLegacyTwoProfile("RoBeats", rb, whiteGray: false, maxJudgmentMs: 150));
+        GameMode.ActiveProfileName = GameMode.LegacyActiveGame == "robeats" ? "RoBeats" : "Funky Friday";
+    }
+
+    private static Profile BuildFromLegacyTwoProfile(string name, JsonElement src, bool whiteGray, double maxJudgmentMs)
+    {
+        var p = new Profile { Name = name, IsBuiltIn = true, MaxJudgmentMs = maxJudgmentMs };
+
+        var sig = new ColorSignature();
+        if (whiteGray && src.TryGetProperty("detection", out var d) && d.TryGetProperty("whiteGray", out var wg))
+        {
+            int whiteMin = wg.TryGetProperty("whiteMin", out var wm) ? wm.GetInt32() : 240;
+            int grayMin  = wg.TryGetProperty("grayMin",  out var gn) ? gn.GetInt32() : 130;
+            int grayMax  = wg.TryGetProperty("grayMax",  out var gx) ? gx.GetInt32() : 170;
+            int whiteMid = (whiteMin + 255) / 2;
+            int grayMid  = (grayMin + grayMax) / 2;
+            int grayHalfRange = (grayMax - grayMin) / 2;
+            sig.Entries.Add(new ColorSignatureEntry(whiteMid, whiteMid, whiteMid, 255 - whiteMid));
+            sig.Entries.Add(new ColorSignatureEntry(grayMid, grayMid, grayMid, Math.Max(grayHalfRange, 8)));
+        }
+        else if (!whiteGray && src.TryGetProperty("detection", out var d2))
+        {
+            if (d2.TryGetProperty("noteColor", out var nc))
+            {
+                int r = nc.TryGetProperty("pickedR", out var pr) && pr.GetInt32() >= 0 ? pr.GetInt32() : 255;
+                int g = nc.TryGetProperty("pickedG", out var pg) && pg.GetInt32() >= 0 ? pg.GetInt32() : 215;
+                int b = nc.TryGetProperty("pickedB", out var pb) && pb.GetInt32() >= 0 ? pb.GetInt32() : 0;
+                sig.Entries.Add(new ColorSignatureEntry(r, g, b, 15));
+            }
+            if (d2.TryGetProperty("holdColor", out var hc))
+            {
+                int r = hc.TryGetProperty("pickedR", out var pr) && pr.GetInt32() >= 0 ? pr.GetInt32() : 160;
+                int g = hc.TryGetProperty("pickedG", out var pg) && pg.GetInt32() >= 0 ? pg.GetInt32() : 120;
+                int b = hc.TryGetProperty("pickedB", out var pb) && pb.GetInt32() >= 0 ? pb.GetInt32() : 40;
+                sig.Entries.Add(new ColorSignatureEntry(r, g, b, 25));
+            }
+        }
+        p.Signatures = new[] { Clone(sig), Clone(sig), Clone(sig), Clone(sig) };
+
+        if (src.TryGetProperty("tap", out var tap))   p.Tap  = JsonSerializer.Deserialize<int[][]>(tap.GetRawText()) ?? Array.Empty<int[]>();
+        if (src.TryGetProperty("hold", out var hold)) p.Hold = JsonSerializer.Deserialize<int[][]>(hold.GetRawText()) ?? Array.Empty<int[]>();
+        if (src.TryGetProperty("tuning", out var t))  p.Tuning = JsonSerializer.Deserialize<TuningSettings>(t.GetRawText()) ?? new();
+        if (src.TryGetProperty("accuracyPreset", out var ap)) p.AccuracyPreset = (AccuracyPreset)ap.GetInt32();
+
+        return p;
+    }
+
+    private static ColorSignature Clone(ColorSignature s)
+    {
+        var c = new ColorSignature();
+        foreach (var e in s.Entries) c.Entries.Add(new ColorSignatureEntry(e.R, e.G, e.B, e.Tolerance));
+        return c;
+    }
+
+    private void ApplyLegacyFlat()
+    {
+        var target = Profiles.Find(p => p.Name == GameMode.ActiveProfileName) ?? Profiles[0];
+        if (LegacyTuning != null) target.Tuning = LegacyTuning;
+    }
 }
 
 // ── ConfigManager (singleton) ───────────────────────────────────
@@ -228,21 +288,23 @@ internal sealed class ConfigManager
     public KeybindSettings Keybinds => _settings.Keybinds;
     public ThemeSettings Theme => _settings.Theme;
     public GameModeSettings GameMode => _settings.GameMode;
-    public ProfilesSettings Profiles => _settings.Profiles;
+    public List<Profile> Profiles => _settings.Profiles;
 
-    /// <summary>
-    /// Returns the profile for the currently active game. The reference is
-    /// resolved each call — callers must NOT cache it across a game switch,
-    /// since switching games changes which profile this resolves to.
-    /// MacroEngine snapshots Detection/Tuning values in Start() for the run.
-    /// </summary>
-    public GameProfile ActiveProfile =>
-        GameMode.ActiveGame == "funkyFriday" ? Profiles.FunkyFriday : Profiles.RoBeats;
+    public Profile ActiveProfile
+    {
+        get
+        {
+            var p = _settings.Profiles.Find(x => x.Name == _settings.GameMode.ActiveProfileName);
+            return p ?? _settings.Profiles[0];
+        }
+    }
 
-    public DetectionSettings Detection => ActiveProfile.Detection;
     public TuningSettings Tuning => ActiveProfile.Tuning;
 
-    public bool IsWhiteGrayMode => GameMode.ActiveGame == "funkyFriday";
+    // TEMP shim: legacy Detection/IsWhiteGrayMode used by consumers rewritten in Tasks 7–11.
+    private readonly DetectionSettings _shimDetection = new();
+    public DetectionSettings Detection => _shimDetection;
+    public bool IsWhiteGrayMode => GameMode.ActiveProfileName == "Funky Friday";
 
     private AppSettings _settings = new();
 
@@ -273,76 +335,25 @@ internal sealed class ConfigManager
 
     public void LoadSettings()
     {
-        if (!File.Exists(SettingsPath)) return;
+        if (!File.Exists(SettingsPath))
+        {
+            _settings = new AppSettings();
+            _settings.Migrate();
+            SaveSettings();
+            return;
+        }
         try
         {
             var json = File.ReadAllText(SettingsPath);
             _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-            MigrateLegacyIfNeeded();
-        }
-        catch { _settings = new AppSettings(); }
-    }
-
-    private void MigrateLegacyIfNeeded()
-    {
-        bool hasLegacyDetection = _settings.LegacyDetection != null;
-        bool hasLegacyTuning    = _settings.LegacyTuning != null;
-        bool hasLegacyCoords    = File.Exists(CoordsPath);
-
-        if (!hasLegacyDetection && !hasLegacyTuning && !hasLegacyCoords) return;
-
-        var activeGame = _settings.GameMode.ActiveGame;
-        var target = activeGame == "funkyFriday"
-            ? _settings.Profiles.FunkyFriday
-            : _settings.Profiles.RoBeats;
-
-        if (hasLegacyDetection) target.Detection = _settings.LegacyDetection!;
-        if (hasLegacyTuning)    target.Tuning    = _settings.LegacyTuning!;
-
-        bool coordsMigrated = false;
-        if (hasLegacyCoords)
-        {
-            try
+            _settings.Migrate();
+            if (File.Exists(CoordsPath))
             {
-                var json = File.ReadAllText(CoordsPath);
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                var tapArr  = root.GetProperty("tap");
-                var holdArr = root.GetProperty("hold");
-                target.Tap  = new int[4][];
-                target.Hold = new int[4][];
-                for (int i = 0; i < 4; i++)
-                {
-                    target.Tap[i]  = new[] { tapArr[i][0].GetInt32(),  tapArr[i][1].GetInt32() };
-                    target.Hold[i] = new[] { holdArr[i][0].GetInt32(), holdArr[i][1].GetInt32() };
-                }
-                coordsMigrated = true;
+                try { File.Delete(CoordsPath); } catch { }
             }
-            catch { /* coords.json corrupt — fall through to defaults */ }
-        }
-
-        bool migrated = hasLegacyDetection || hasLegacyTuning || coordsMigrated;
-
-        if (migrated)
-        {
-            _settings.LegacyDetection = null;
-            _settings.LegacyTuning    = null;
             SaveSettings();
         }
-
-        if (hasLegacyCoords)
-        {
-            try { File.Delete(CoordsPath); } catch { }
-        }
-
-        if (migrated)
-        {
-            Log.Info($"Migrated legacy settings to profile: {activeGame}");
-        }
-        else if (hasLegacyCoords)
-        {
-            Log.Info("Discarded corrupt legacy coords.json — using profile defaults");
-        }
+        catch { _settings = new AppSettings(); _settings.Migrate(); }
     }
 
     public void SaveSettings()
@@ -425,4 +436,74 @@ internal sealed class ConfigManager
         bmp.Save(path, System.Drawing.Imaging.ImageFormat.Png);
         return path;
     }
+
+    // ── Profile management ──────────────────────────────────────
+
+    public Profile AddProfile(string name)
+    {
+        if (Profiles.Any(p => p.Name == name))
+            throw new InvalidOperationException($"Profile '{name}' already exists");
+        var p = new Profile { Name = name, IsBuiltIn = false };
+        Profiles.Add(p);
+        SaveSettings();
+        return p;
+    }
+
+    public void DeleteProfile(string name)
+    {
+        var p = Profiles.FirstOrDefault(x => x.Name == name);
+        if (p == null) return;
+        if (p.IsBuiltIn) throw new InvalidOperationException("Cannot delete a built-in profile");
+        Profiles.Remove(p);
+        if (_settings.GameMode.ActiveProfileName == name && Profiles.Count > 0)
+            _settings.GameMode.ActiveProfileName = Profiles[0].Name;
+        SaveSettings();
+    }
+
+    public Profile DuplicateProfile(string name, string newName)
+    {
+        var src = Profiles.First(p => p.Name == name);
+        var json = JsonSerializer.Serialize(src);
+        var copy = JsonSerializer.Deserialize<Profile>(json)!;
+        copy.Name = newName;
+        copy.IsBuiltIn = false;
+        Profiles.Add(copy);
+        SaveSettings();
+        return copy;
+    }
+
+    public void SetActiveProfile(string name)
+    {
+        if (!Profiles.Any(p => p.Name == name)) return;
+        _settings.GameMode.ActiveProfileName = name;
+        SaveSettings();
+    }
+}
+
+// ── TEMP shims until Tasks 7–11 rewrite consumers. ──────────────
+// These recreate the old detection-settings POCOs (no longer serialized) so
+// ColorsTab / MacroEngine / GamesTab / etc. still compile. Task 11 deletes them.
+
+internal sealed class DetectionSettings
+{
+    public WhiteGraySettings WhiteGray { get; set; } = new();
+    public NoteColorSettings NoteColor { get; set; } = new();
+    public HoldColorSettings HoldColor { get; set; } = new();
+}
+
+internal sealed class NoteColorSettings
+{
+    public int MinR = 200, MinG = 180, MaxB = 80;
+    public int PickedR = -1, PickedG = -1, PickedB = -1;
+}
+
+internal sealed class HoldColorSettings
+{
+    public int MinR = 120, MaxR = 200, MinG = 100, MaxG = 180, MaxB = 80, MinRG = 230;
+    public int PickedR = -1, PickedG = -1, PickedB = -1;
+}
+
+internal sealed class WhiteGraySettings
+{
+    public int WhiteMin = 240, GrayMin = 130, GrayMax = 170;
 }
