@@ -38,21 +38,14 @@ internal sealed class MacroEngine
     public Point[] HoldPixels { get; private set; } = null!;
 
     /// <summary>True for any lane whose press is currently delayed by an accuracy preset.</summary>
-    public bool[] PendingScheduled
-    {
-        get
-        {
-            var arr = new bool[4];
-            for (int i = 0; i < 4; i++) arr[i] = _scheduledPressAt[i] > 0;
-            return arr;
-        }
-    }
+    public bool[] PendingScheduled => _pendingScheduledDebug;
 
     // Private state
     private readonly DetectionLane[] _lanes = new DetectionLane[4];
     private readonly double[] _scheduledPressAt = new double[4];
     private readonly double[] _tapReleaseAt = new double[4]; // used only for preset-delayed taps' minimum held duration
     private readonly int[] _matchCountsDebug = new int[4];
+    private readonly bool[] _pendingScheduledDebug = new bool[4];
     private readonly Random _rng = new();
     private AccuracyPreset _accuracyPreset;
     private double _accuracyMaxDelay;
@@ -158,6 +151,7 @@ internal sealed class MacroEngine
             {
                 int matchCount = capture.CountSignatureMatches(tapRel[i].X, tapRel[i].Y, _sampleHalf, _signatures[i]);
                 _matchCountsDebug[i] = matchCount;
+                _pendingScheduledDebug[i] = _scheduledPressAt[i] > 0;
                 bool present = matchCount >= _minPixels;
 
                 var action = _lanes[i].Update(present, now);
