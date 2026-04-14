@@ -84,6 +84,8 @@ internal sealed class TuningSettings
     [JsonPropertyName("toggleDelay")] public double ToggleDelay { get; set; } = 0.3;
     [JsonPropertyName("holdArmGrace")] public double HoldArmGrace { get; set; } = 0.20;
     [JsonPropertyName("holdReleaseGrace")] public double HoldReleaseGrace { get; set; } = 0.01;
+    [JsonPropertyName("cleanFrames")] public int CleanFrames { get; set; } = 3;
+    [JsonPropertyName("minPressDurationMs")] public double MinPressDurationMs { get; set; } = 20.0;
 
     public void Reset()
     {
@@ -92,6 +94,7 @@ internal sealed class TuningSettings
         TapKeyDuration = d.TapKeyDuration; HoldReleaseCooldown = d.HoldReleaseCooldown;
         ToggleDelay = d.ToggleDelay; HoldArmGrace = d.HoldArmGrace;
         HoldReleaseGrace = d.HoldReleaseGrace;
+        CleanFrames = d.CleanFrames; MinPressDurationMs = d.MinPressDurationMs;
     }
 }
 
