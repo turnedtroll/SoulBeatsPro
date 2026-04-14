@@ -270,9 +270,15 @@ internal sealed class MacroEngine
                 }
 
                 // ── IDLE ──
+                // Funky Friday (white/gray mode) uses simple threshold triggering — cleaner notes
+                // with natural gaps. RoBeats (color mode) needs rising-edge for dense streams.
+                bool idleTrigger = _whiteGrayMode
+                    ? noteCount >= _minPixels
+                    : noteCount >= _minPixels && _lastNoteCount[i] < _minPixels;
+
                 if (state == LaneState.Idle && now - _holdReleasedAt[i] >= _holdReleaseCooldown)
                 {
-                    if (noteCount >= _minPixels && _lastNoteCount[i] < _minPixels)
+                    if (idleTrigger)
                     {
                         if (HoldIncoming[i])
                         {
@@ -310,11 +316,14 @@ internal sealed class MacroEngine
                 // ── TAPPED ──
                 else if (state == LaneState.Tapped)
                 {
-                    bool released    = _tapReleaseAt[i] == 0.0;
-                    bool risingEdge  = noteCount >= _minPixels && _lastNoteCount[i] < _minPixels;
-                    bool cleared     = noteCount < _minPixels;
+                    bool released   = _tapReleaseAt[i] == 0.0;
+                    bool cleared    = noteCount < _minPixels;
 
-                    if (released && (cleared || risingEdge))
+                    bool shouldExit = _whiteGrayMode
+                        ? (released && cleared)
+                        : (released && (cleared || (noteCount >= _minPixels && _lastNoteCount[i] < _minPixels)));
+
+                    if (shouldExit)
                     {
                         States[i] = LaneState.Idle;
                         HoldIncoming[i] = false;
