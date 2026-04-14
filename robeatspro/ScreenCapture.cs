@@ -7,9 +7,9 @@ namespace SoulBeatsPro;
 /// </summary>
 internal enum PixelKind : byte
 {
-    None = 0,
-    White = 1,   // Passes white threshold (note in white/gray mode, or note color in color mode)
-    Gray  = 2    // Passes gray threshold (hold body in white/gray mode, or hold color in color mode)
+    None  = 0,
+    White = 1,   // Matched the FIRST entry of the signature (canonical "tap head" color).
+    Gray  = 2    // Matched a non-first entry (e.g. "hold body" color).
 }
 
 /// <summary>
@@ -55,9 +55,9 @@ internal readonly struct ContextPatch
 }
 
 /// Fast screen capture and pixel sampling using GDI+.
-/// Supports two detection modes:
-///   - WhiteGray (Funky Friday / larpLOLv4): all channels high = note, all channels mid = hold
-///   - ColorBased (RoBeats): configurable R/G thresholds with B constraint
+/// All classification is signature-based: a pixel is matched against a
+/// <see cref="ColorSignature"/>; the FIRST entry maps to <see cref="PixelKind.White"/>,
+/// any other matching entry maps to <see cref="PixelKind.Gray"/>.
 internal sealed class ScreenCapture : IDisposable
 {
     private Bitmap _bmp;
@@ -91,198 +91,6 @@ internal sealed class ScreenCapture : IDisposable
 
     public Bitmap Bitmap => _bmp;
 
-    // ── White/Gray detection (larpLOLv4 / Funky Friday) ─────────
-
-    /// Count white and gray pixels in a (2*half+1) square patch.
-    /// White = all channels >= whiteMin (note arriving)
-    /// Gray = all channels in [grayMin, grayMax] (hold body)
-    public unsafe void AnalyzePatchWhiteGray(
-        int cx, int cy, int half,
-        out int whiteCount, out int grayCount)
-    {
-        whiteCount = 0;
-        grayCount = 0;
-
-        int x0 = Math.Max(0, cx - half);
-        int y0 = Math.Max(0, cy - half);
-        int x1 = Math.Min(Width - 1, cx + half);
-        int y1 = Math.Min(Height - 1, cy + half);
-
-        var data = _bmp.LockBits(
-            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
-            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-
-        try
-        {
-            var wg = ConfigManager.Instance.Detection.WhiteGray;
-            int whiteMin = wg.WhiteMin;
-            int grayMin = wg.GrayMin;
-            int grayMax = wg.GrayMax;
-
-            int stride = data.Stride;
-            byte* ptr = (byte*)data.Scan0;
-            int w = x1 - x0 + 1;
-            int h = y1 - y0 + 1;
-
-            for (int row = 0; row < h; row++)
-            {
-                byte* line = ptr + row * stride;
-                for (int col = 0; col < w; col++)
-                {
-                    byte b = line[col * 4];
-                    byte g = line[col * 4 + 1];
-                    byte r = line[col * 4 + 2];
-
-                    if (r >= whiteMin && g >= whiteMin && b >= whiteMin)
-                        whiteCount++;
-                    else if (r >= grayMin && r <= grayMax &&
-                             g >= grayMin && g <= grayMax &&
-                             b >= grayMin && b <= grayMax)
-                        grayCount++;
-                }
-            }
-        }
-        finally
-        {
-            _bmp.UnlockBits(data);
-        }
-    }
-
-    /// Check if patch has any white pixels.
-    public unsafe bool PatchHasWhite(int cx, int cy, int half)
-    {
-        int x0 = Math.Max(0, cx - half);
-        int y0 = Math.Max(0, cy - half);
-        int x1 = Math.Min(Width - 1, cx + half);
-        int y1 = Math.Min(Height - 1, cy + half);
-
-        var data = _bmp.LockBits(
-            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
-            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-
-        try
-        {
-            var wg = ConfigManager.Instance.Detection.WhiteGray;
-            int whiteMin = wg.WhiteMin;
-
-            int stride = data.Stride;
-            byte* ptr = (byte*)data.Scan0;
-            int w = x1 - x0 + 1;
-            int h = y1 - y0 + 1;
-
-            for (int row = 0; row < h; row++)
-            {
-                byte* line = ptr + row * stride;
-                for (int col = 0; col < w; col++)
-                {
-                    byte b = line[col * 4];
-                    byte g = line[col * 4 + 1];
-                    byte r = line[col * 4 + 2];
-                    if (r >= whiteMin && g >= whiteMin && b >= whiteMin) return true;
-                }
-            }
-            return false;
-        }
-        finally
-        {
-            _bmp.UnlockBits(data);
-        }
-    }
-
-    // ── Color-based detection (RoBeats) ─────────────────────────
-
-    /// Count note-color and hold-color pixels in a patch.
-    /// Note = bright color matching configurable R/G/B thresholds
-    /// Hold = darker color matching configurable range
-    public unsafe void AnalyzePatchColor(
-        int cx, int cy, int half,
-        out int noteCount, out int holdCount)
-    {
-        noteCount = 0;
-        holdCount = 0;
-
-        int x0 = Math.Max(0, cx - half);
-        int y0 = Math.Max(0, cy - half);
-        int x1 = Math.Min(Width - 1, cx + half);
-        int y1 = Math.Min(Height - 1, cy + half);
-
-        var data = _bmp.LockBits(
-            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
-            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-
-        try
-        {
-            int stride = data.Stride;
-            byte* ptr = (byte*)data.Scan0;
-            int w = x1 - x0 + 1;
-            int h = y1 - y0 + 1;
-
-            var nc = ConfigManager.Instance.Detection.NoteColor;
-            var hc = ConfigManager.Instance.Detection.HoldColor;
-
-            for (int row = 0; row < h; row++)
-            {
-                byte* line = ptr + row * stride;
-                for (int col = 0; col < w; col++)
-                {
-                    byte b = line[col * 4];
-                    byte g = line[col * 4 + 1];
-                    byte r = line[col * 4 + 2];
-
-                    if (r >= nc.MinR && g >= nc.MinG && b < nc.MaxB)
-                        noteCount++;
-                    else if (r >= hc.MinR && r <= hc.MaxR && g >= hc.MinG && g <= hc.MaxG
-                             && b < hc.MaxB && (r + g) > hc.MinRG)
-                        holdCount++;
-                }
-            }
-        }
-        finally
-        {
-            _bmp.UnlockBits(data);
-        }
-    }
-
-    /// Check if patch has any note-color pixels (color-based mode).
-    public unsafe bool PatchHasNoteColor(int cx, int cy, int half)
-    {
-        int x0 = Math.Max(0, cx - half);
-        int y0 = Math.Max(0, cy - half);
-        int x1 = Math.Min(Width - 1, cx + half);
-        int y1 = Math.Min(Height - 1, cy + half);
-
-        var data = _bmp.LockBits(
-            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
-            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-
-        try
-        {
-            int stride = data.Stride;
-            byte* ptr = (byte*)data.Scan0;
-            int w = x1 - x0 + 1;
-            int h = y1 - y0 + 1;
-
-            var nc = ConfigManager.Instance.Detection.NoteColor;
-
-            for (int row = 0; row < h; row++)
-            {
-                byte* line = ptr + row * stride;
-                for (int col = 0; col < w; col++)
-                {
-                    byte b = line[col * 4];
-                    byte g = line[col * 4 + 1];
-                    byte r = line[col * 4 + 2];
-                    if (r >= nc.MinR && g >= nc.MinG && b < nc.MaxB) return true;
-                }
-            }
-            return false;
-        }
-        finally
-        {
-            _bmp.UnlockBits(data);
-        }
-    }
-
     /// <summary>
     /// Count pixels in a (2*half+1) square patch that match any entry in the
     /// given color signature. This is the one-stop detection primitive used by
@@ -309,7 +117,6 @@ internal sealed class ScreenCapture : IDisposable
             int w = x1 - x0 + 1;
             int h = y1 - y0 + 1;
 
-            // Snapshot to locals for the inner loop.
             int entryCount = sig.Entries.Count;
             var entries = sig.Entries;
 
@@ -359,12 +166,12 @@ internal sealed class ScreenCapture : IDisposable
     }
 
     /// <summary>
-    /// Analyze a (2*half+1) square patch. Honors the active detection mode
-    /// (WhiteGray vs Color-based) so callers don't need to branch.
-    /// If `includePixels` is true, the returned struct includes per-pixel
-    /// classification suitable for rendering the calibration magnifier.
+    /// Analyze a (2*half+1) square patch against a color signature.
+    /// First-entry matches count as <see cref="PixelKind.White"/> (and toward
+    /// <see cref="PatchAnalysis.WhiteCount"/>); any other matching entry counts
+    /// as <see cref="PixelKind.Gray"/> (and toward <see cref="PatchAnalysis.GrayCount"/>).
     /// </summary>
-    public unsafe PatchAnalysis AnalyzePatch(int cx, int cy, int half, bool includePixels)
+    public unsafe PatchAnalysis AnalyzePatch(int cx, int cy, int half, ColorSignature sig, bool includePixels)
     {
         int x0 = Math.Max(0, cx - half);
         int y0 = Math.Max(0, cy - half);
@@ -377,22 +184,17 @@ internal sealed class ScreenCapture : IDisposable
         int whiteCount = 0;
         int grayCount  = 0;
 
+        if (x1 < x0 || y1 < y0)
+            return new PatchAnalysis(whiteCount, grayCount, pixels, patchW, patchH);
+
         var data = _bmp.LockBits(
             new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
             ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
 
         try
         {
-            bool whiteGray = ConfigManager.Instance.IsWhiteGrayMode;
-            var det = ConfigManager.Instance.Detection;
-
-            int whiteMin = det.WhiteGray.WhiteMin;
-            int grayMin  = det.WhiteGray.GrayMin;
-            int grayMax  = det.WhiteGray.GrayMax;
-            int nMinR = det.NoteColor.MinR, nMinG = det.NoteColor.MinG, nMaxB = det.NoteColor.MaxB;
-            int hMinR = det.HoldColor.MinR, hMaxR = det.HoldColor.MaxR;
-            int hMinG = det.HoldColor.MinG, hMaxG = det.HoldColor.MaxG;
-            int hMaxB = det.HoldColor.MaxB,  hMinRG = det.HoldColor.MinRG;
+            int entryCount = sig.Entries.Count;
+            var entries = sig.Entries;
 
             int stride = data.Stride;
             byte* ptr = (byte*)data.Scan0;
@@ -412,23 +214,17 @@ internal sealed class ScreenCapture : IDisposable
                     byte r = line[col * 4 + 2];
 
                     PixelKind kind = PixelKind.None;
-                    if (whiteGray)
+                    for (int e = 0; e < entryCount; e++)
                     {
-                        if (r >= whiteMin && g >= whiteMin && b >= whiteMin)
-                            kind = PixelKind.White;
-                        else if (r >= grayMin && r <= grayMax &&
-                                 g >= grayMin && g <= grayMax &&
-                                 b >= grayMin && b <= grayMax)
-                            kind = PixelKind.Gray;
-                    }
-                    else
-                    {
-                        if (r >= nMinR && g >= nMinG && b < nMaxB)
-                            kind = PixelKind.White;
-                        else if (r >= hMinR && r <= hMaxR &&
-                                 g >= hMinG && g <= hMaxG &&
-                                 b < hMaxB && (r + g) > hMinRG)
-                            kind = PixelKind.Gray;
+                        var entry = entries[e];
+                        int tol = entry.Tolerance;
+                        if (Math.Abs(r - entry.R) <= tol &&
+                            Math.Abs(g - entry.G) <= tol &&
+                            Math.Abs(b - entry.B) <= tol)
+                        {
+                            kind = e == 0 ? PixelKind.White : PixelKind.Gray;
+                            break;
+                        }
                     }
 
                     if (kind == PixelKind.White) whiteCount++;
@@ -452,10 +248,11 @@ internal sealed class ScreenCapture : IDisposable
     }
 
     /// <summary>
-    /// Read a (2*contextHalf+1) square of raw screen pixels plus their classification,
-    /// for the calibration magnifier. Pixels outside capture bounds are filled black / None.
+    /// Read a (2*contextHalf+1) square of raw screen pixels plus their classification
+    /// against the supplied signature, for the calibration magnifier. Pixels outside
+    /// capture bounds are filled black / None.
     /// </summary>
-    public unsafe ContextPatch GetContextPatch(int cx, int cy, int contextHalf)
+    public unsafe ContextPatch GetContextPatch(int cx, int cy, int contextHalf, ColorSignature sig)
     {
         int patchW = 2 * contextHalf + 1;
         int patchH = 2 * contextHalf + 1;
@@ -474,15 +271,8 @@ internal sealed class ScreenCapture : IDisposable
 
         try
         {
-            bool whiteGray = ConfigManager.Instance.IsWhiteGrayMode;
-            var det = ConfigManager.Instance.Detection;
-            int whiteMin = det.WhiteGray.WhiteMin;
-            int grayMin  = det.WhiteGray.GrayMin;
-            int grayMax  = det.WhiteGray.GrayMax;
-            int nMinR = det.NoteColor.MinR, nMinG = det.NoteColor.MinG, nMaxB = det.NoteColor.MaxB;
-            int hMinR = det.HoldColor.MinR, hMaxR = det.HoldColor.MaxR;
-            int hMinG = det.HoldColor.MinG, hMaxG = det.HoldColor.MaxG;
-            int hMaxB = det.HoldColor.MaxB,  hMinRG = det.HoldColor.MinRG;
+            int entryCount = sig.Entries.Count;
+            var entries = sig.Entries;
 
             int stride = data.Stride;
             byte* ptr = (byte*)data.Scan0;
@@ -502,23 +292,17 @@ internal sealed class ScreenCapture : IDisposable
                     byte r = line[col * 4 + 2];
 
                     PixelKind kind = PixelKind.None;
-                    if (whiteGray)
+                    for (int e = 0; e < entryCount; e++)
                     {
-                        if (r >= whiteMin && gChan >= whiteMin && b >= whiteMin)
-                            kind = PixelKind.White;
-                        else if (r >= grayMin && r <= grayMax &&
-                                 gChan >= grayMin && gChan <= grayMax &&
-                                 b >= grayMin && b <= grayMax)
-                            kind = PixelKind.Gray;
-                    }
-                    else
-                    {
-                        if (r >= nMinR && gChan >= nMinG && b < nMaxB)
-                            kind = PixelKind.White;
-                        else if (r >= hMinR && r <= hMaxR &&
-                                 gChan >= hMinG && gChan <= hMaxG &&
-                                 b < hMaxB && (r + gChan) > hMinRG)
-                            kind = PixelKind.Gray;
+                        var entry = entries[e];
+                        int tol = entry.Tolerance;
+                        if (Math.Abs(r - entry.R) <= tol &&
+                            Math.Abs(gChan - entry.G) <= tol &&
+                            Math.Abs(b - entry.B) <= tol)
+                        {
+                            kind = e == 0 ? PixelKind.White : PixelKind.Gray;
+                            break;
+                        }
                     }
 
                     int outIdx = (writeOffsetY + row) * patchW + (writeOffsetX + col);

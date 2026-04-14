@@ -550,8 +550,10 @@ internal sealed class CalibrationTab : UserControl
                         && captureX < _capture.Width - SampleHalf
                         && captureY < _capture.Height - SampleHalf)
                     {
-                        var analysis = _capture.AnalyzePatch(captureX, captureY, SampleHalf, includePixels: false);
-                        int count = kind == "tap" ? analysis.WhiteCount : analysis.GrayCount;
+                        var laneSig = ConfigManager.Instance.ActiveProfile.Signatures[i];
+                        var analysis = _capture.AnalyzePatch(captureX, captureY, SampleHalf, laneSig, includePixels: false);
+                        // Total signature matches (any entry) is what the engine sees.
+                        int count = analysis.WhiteCount + analysis.GrayCount;
                         int minPx = ConfigManager.Instance.Tuning.MinPixels;
                         bool pass = count >= minPx;
                         string mark = pass ? "\u2713" : "\u2717";
@@ -637,7 +639,8 @@ internal sealed class CalibrationTab : UserControl
             return;
         }
 
-        var ctx = _capture.GetContextPatch(captureX, captureY, MagnifierContextHalf);
+        var sigForMagnifier = ConfigManager.Instance.ActiveProfile.Signatures[lane];
+        var ctx = _capture.GetContextPatch(captureX, captureY, MagnifierContextHalf, sigForMagnifier);
         int side = ctx.Width;
         var bmp = new Bitmap(side, side);
 
@@ -725,8 +728,9 @@ internal sealed class CalibrationTab : UserControl
         int curCaptureY = current.Y - _monitorBounds.Top;
 
         bool useWhite = kind == "tap";
+        var snapSig = ConfigManager.Instance.ActiveProfile.Signatures[lane];
 
-        int currentCount = ScoreAt(curCaptureX, curCaptureY, useWhite);
+        int currentCount = ScoreAt(curCaptureX, curCaptureY, useWhite, snapSig);
 
         int bestX = curCaptureX;
         int bestY = curCaptureY;
@@ -745,7 +749,7 @@ internal sealed class CalibrationTab : UserControl
                     || syS >= _capture.Height - SampleHalf)
                     continue;
 
-                int score = ScoreAt(sxS, syS, useWhite);
+                int score = ScoreAt(sxS, syS, useWhite, snapSig);
                 if (score > bestCount)
                 {
                     bestCount = score;
@@ -769,11 +773,14 @@ internal sealed class CalibrationTab : UserControl
         RefreshSelectionUI();
     }
 
-    private int ScoreAt(int captureX, int captureY, bool useWhite)
+    private int ScoreAt(int captureX, int captureY, bool useWhite, ColorSignature sig)
     {
         if (_capture == null) return 0;
-        var a = _capture.AnalyzePatch(captureX, captureY, SampleHalf, includePixels: false);
-        return useWhite ? a.WhiteCount : a.GrayCount;
+        var a = _capture.AnalyzePatch(captureX, captureY, SampleHalf, sig, includePixels: false);
+        // Tap snaps to first-entry "head" color; hold snaps to other-entry "body" color.
+        // If the lane has only one entry, fall back to total matches so hold still snaps.
+        if (useWhite) return a.WhiteCount;
+        return a.GrayCount > 0 ? a.GrayCount : a.WhiteCount;
     }
 
     private void FlashSnapMessage(string msg)

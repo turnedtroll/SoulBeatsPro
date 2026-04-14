@@ -3,7 +3,7 @@ using System.Drawing.Imaging;
 
 namespace SoulBeatsPro;
 
-/// Debug overlay — shows live lane states, pixel counts, and detection boxes.
+/// Debug overlay — shows live lane states, signature match counts, and detection boxes.
 internal sealed class DebugForm : Form
 {
     private new const float Scale = 0.5f;
@@ -65,10 +65,6 @@ internal sealed class DebugForm : Form
         try { _capture.Grab(); }
         catch { return; }
 
-        bool wgMode = _engine.WhiteGrayMode;
-        string noteLabel = wgMode ? "W" : "N";
-        string holdLabel = wgMode ? "G" : "H";
-
         int imgW = (int)(_monitorBounds.Width * Scale);
         int imgH = (int)(_monitorBounds.Height * Scale);
         int totalH = Math.Max(imgH, 280);
@@ -97,6 +93,7 @@ internal sealed class DebugForm : Form
 
             int shD = Math.Max(1, (int)(SampleHalf * Scale));
             var laneKeys = ConfigManager.Instance.Keybinds.LaneKeys;
+            var pending = _engine.PendingScheduled;
 
             for (int i = 0; i < 4; i++)
             {
@@ -111,10 +108,9 @@ internal sealed class DebugForm : Form
                 tyD = Math.Clamp(tyD, BoxSize, totalH - BoxSize - 1);
 
                 Color tapCol; int tapThick;
-                // TODO universal-detection: fix during Task 8/9/11 — Tapped/Holding collapsed to Pressing under new engine.
                 if (state == MacroEngine.LaneState.Pressing)
-                    { tapCol = Color.Yellow; tapThick = 3; }
-                else if (_engine.NoteCounts[i] >= 3)
+                    { tapCol = Color.LimeGreen; tapThick = 3; }
+                else if (_engine.MatchCounts[i] >= 3)
                     { tapCol = Color.White; tapThick = 2; }
                 else
                     { tapCol = col; tapThick = 1; }
@@ -130,29 +126,12 @@ internal sealed class DebugForm : Form
                 g.DrawString($"T{keyDisp}", lblFont,
                     new SolidBrush(tapCol), txD - BoxSize, tyD - BoxSize - 13);
 
-                // TODO universal-detection: fix during Task 8/9/11
                 if (state != MacroEngine.LaneState.Released)
                     g.DrawString(state.ToString().ToUpper(), lblFont,
                         new SolidBrush(tapCol), txD - BoxSize, tyD + BoxSize + 2);
-
-                // Hold point
-                int hxD = PanelWidth + (int)((_engine.HoldPixels[i].X - _monitorBounds.Left) * Scale);
-                int hyD = (int)((_engine.HoldPixels[i].Y - _monitorBounds.Top) * Scale);
-                hxD = Math.Clamp(hxD, PanelWidth + BoxSize, PanelWidth + imgW - BoxSize - 1);
-                hyD = Math.Clamp(hyD, BoxSize, totalH - BoxSize - 1);
-
-                Color hldCol = _engine.HoldZoneCounts[i] >= 3 ? Color.Orange : col;
-                int hldThick = _engine.HoldZoneCounts[i] >= 3 ? 2 : 1;
-
-                using (var p = new Pen(hldCol, hldThick))
-                {
-                    g.DrawRectangle(p, hxD - BoxSize, hyD - BoxSize, BoxSize * 2, BoxSize * 2);
-                    p.Width = 1;
-                    g.DrawRectangle(p, hxD - shD, hyD - shD, shD * 2, shD * 2);
-                }
-
-                g.DrawString($"H{keyDisp}", lblFont,
-                    new SolidBrush(hldCol), hxD - BoxSize, hyD - BoxSize - 13);
+                else if (pending[i])
+                    g.DrawString("DELAYED", lblFont,
+                        new SolidBrush(Color.FromArgb(255, 200, 80)), txD - BoxSize, tyD + BoxSize + 2);
             }
 
             // Left panel
@@ -160,13 +139,13 @@ internal sealed class DebugForm : Form
             using var headerFont = new Font("Consolas", 8f, FontStyle.Bold);
 
             int row = 18;
-            string gameMode = wgMode ? "Funky Friday" : "RoBeats";
+            string profileName = ConfigManager.Instance.ActiveProfile.Name;
             var statusCol = _engine.Active ? Color.LimeGreen : Color.FromArgb(220, 80, 80);
             g.DrawString($"{(_engine.Active ? "ACTIVE" : "PAUSED")}    FPS: {_engine.Fps}",
                 headerFont, new SolidBrush(statusCol), 6, row);
             row += 16;
 
-            g.DrawString($"Mode: {gameMode}", panelFont, new SolidBrush(Color.FromArgb(180, 180, 255)), 6, row);
+            g.DrawString($"Profile: {profileName}", panelFont, new SolidBrush(Color.FromArgb(180, 180, 255)), 6, row);
             row += 16;
 
             var kb = ConfigManager.Instance.Keybinds;
@@ -174,27 +153,20 @@ internal sealed class DebugForm : Form
                 panelFont, new SolidBrush(Color.Gray), 6, row);
             row += 20;
 
-            g.DrawString($" Ln  State  {noteLabel}  TH  HZ  Fl", headerFont,
+            g.DrawString(" Ln  State    Match  Sched", headerFont,
                 new SolidBrush(Color.FromArgb(255, 220, 80)), 6, row);
             row += 15;
 
             for (int i = 0; i < 4; i++)
             {
                 var s = _engine.States[i];
-                // TODO universal-detection: fix during Task 8/9/11 — lost Tapped/Holding distinction.
-                string sAbb = s switch
-                {
-                    MacroEngine.LaneState.Released => "IDLE",
-                    MacroEngine.LaneState.Pressing => "PRES",
-                    _ => "????"
-                };
-                var sc = s != MacroEngine.LaneState.Released ? MacroEngine.LaneColors[i] : Color.Gray;
-                string fl = (_engine.HoldIncoming[i] ? "I" : "") + (_engine.HoldSawTail[i] ? "T" : "");
+                string sAbb = s == MacroEngine.LaneState.Pressing ? "PRESS" : "RELES";
+                var sc = s == MacroEngine.LaneState.Pressing ? Color.LimeGreen : Color.Gray;
+                string sched = pending[i] ? "delayed" : "";
                 string keyDisp = NativeApi.DisplayName(laneKeys[i]);
 
                 g.DrawString(
-                    $"  {keyDisp,-3} {sAbb}  {_engine.NoteCounts[i],2}  " +
-                    $"{_engine.TapHoldCounts[i],2}  {_engine.HoldZoneCounts[i],2}  {fl}",
+                    $"  {keyDisp,-3} {sAbb}    {_engine.MatchCounts[i],3}  {sched}",
                     panelFont, new SolidBrush(sc), 6, row);
                 row += 15;
             }
@@ -210,14 +182,8 @@ internal sealed class DebugForm : Form
                 row += 15;
             }
 
-            string noteType = wgMode ? "white" : "note color";
-            DrawLegend(Color.White, $"note arriving ({noteType})");
-            DrawLegend(Color.Yellow, "key down (tap)");
-            DrawLegend(Color.Lime, "key held (hold)");
-            DrawLegend(Color.Orange, $"hold zone ({(wgMode ? "gray" : "hold color")})");
-
-            row += 4;
-            g.DrawString("I=incoming T=tail", panelFont, new SolidBrush(Color.DimGray), 6, row);
+            DrawLegend(Color.White, "signature match (>=3 px)");
+            DrawLegend(Color.LimeGreen, "key pressing");
         }
 
         var old = _pic.Image;

@@ -15,13 +15,6 @@ internal sealed class MainTab : UserControl
     private readonly System.Windows.Forms.Timer _timer;
     private readonly System.Windows.Forms.Timer _fpsTimer;
 
-    // Quick-change color controls
-    private readonly Panel _tapColorSwatch;
-    private readonly Button _tapColorPickBtn;
-    private readonly Label _tapColorRgb;
-    private readonly Panel _holdColorSwatch;
-    private readonly Button _holdColorPickBtn;
-
     private MacroEngine? _engine;
     private DebugForm? _debugForm;
     private double _lastPToggle;
@@ -166,86 +159,6 @@ internal sealed class MainTab : UserControl
         Controls.Add(_screenshotBtn);
         y += 34;
 
-        // ── Quick-change: Tap Color ────────────────────────────────
-        var tapColorLabel = new Label
-        {
-            Text = "Tap Color:",
-            Font = font,
-            AutoSize = true,
-            Location = new Point(14, y + 2),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        Controls.Add(tapColorLabel);
-
-        _tapColorSwatch = new Panel
-        {
-            Size = new Size(20, 20),
-            Location = new Point(80, y),
-            BorderStyle = BorderStyle.Fixed3D,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        Controls.Add(_tapColorSwatch);
-
-        _tapColorPickBtn = new Button
-        {
-            Text = "Pick",
-            Font = font,
-            FlatStyle = FlatStyle.Standard,
-            Size = new Size(50, 22),
-            Location = new Point(106, y),
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        _tapColorPickBtn.Click += TapColorPickBtn_Click;
-        Controls.Add(_tapColorPickBtn);
-
-        _tapColorRgb = new Label
-        {
-            Text = "",
-            Font = font,
-            ForeColor = Color.Gray,
-            AutoSize = true,
-            Location = new Point(162, y + 2),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        Controls.Add(_tapColorRgb);
-        y += 28;
-
-        // ── Quick-change: Hold Color ───────────────────────────────
-        var holdColorLabel = new Label
-        {
-            Text = "Hold Color:",
-            Font = font,
-            AutoSize = true,
-            Location = new Point(14, y + 2),
-            TextAlign = ContentAlignment.MiddleLeft,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        Controls.Add(holdColorLabel);
-
-        _holdColorSwatch = new Panel
-        {
-            Size = new Size(20, 20),
-            Location = new Point(80, y),
-            BorderStyle = BorderStyle.Fixed3D,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        Controls.Add(_holdColorSwatch);
-
-        _holdColorPickBtn = new Button
-        {
-            Text = "Pick",
-            Font = font,
-            FlatStyle = FlatStyle.Standard,
-            Size = new Size(50, 22),
-            Location = new Point(106, y),
-            Anchor = AnchorStyles.Left | AnchorStyles.Top
-        };
-        _holdColorPickBtn.Click += HoldColorPickBtn_Click;
-        Controls.Add(_holdColorPickBtn);
-        y += 34;
-
         // ── Help text ──────────────────────────────────────────────
         var help = new Label
         {
@@ -332,10 +245,6 @@ internal sealed class MainTab : UserControl
         };
         Controls.Add(_fpsWarnLabel);
 
-        // ── Initial swatch colors ──────────────────────────────────
-        UpdateTapSwatch();
-        UpdateHoldSwatch();
-
         // ── Timer for polling state ────────────────────────────────
         _timer = new System.Windows.Forms.Timer { Interval = 100 };
         _timer.Tick += Timer_Tick;
@@ -345,74 +254,6 @@ internal sealed class MainTab : UserControl
         _fpsTimer = new System.Windows.Forms.Timer { Interval = 1000 };
         _fpsTimer.Tick += FpsTimer_Tick;
         _fpsTimer.Start();
-    }
-
-    // ── Swatch helpers ─────────────────────────────────────────────
-
-    private void UpdateTapSwatch()
-    {
-        var nc = ConfigManager.Instance.Detection.NoteColor;
-        if (nc.PickedR >= 0 && nc.PickedG >= 0 && nc.PickedB >= 0)
-            _tapColorSwatch.BackColor = Color.FromArgb(nc.PickedR, nc.PickedG, nc.PickedB);
-        else
-            _tapColorSwatch.BackColor = Color.FromArgb(
-                Math.Clamp((nc.MinR + 255) / 2, 0, 255),
-                Math.Clamp((nc.MinG + 255) / 2, 0, 255),
-                Math.Clamp(nc.MaxB / 2, 0, 255));
-    }
-
-    private void UpdateHoldSwatch()
-    {
-        var hc = ConfigManager.Instance.Detection.HoldColor;
-        if (hc.PickedR >= 0 && hc.PickedG >= 0 && hc.PickedB >= 0)
-            _holdColorSwatch.BackColor = Color.FromArgb(hc.PickedR, hc.PickedG, hc.PickedB);
-        else
-            _holdColorSwatch.BackColor = Color.FromArgb(
-                Math.Clamp((hc.MinR + hc.MaxR) / 2, 0, 255),
-                Math.Clamp((hc.MinG + hc.MaxG) / 2, 0, 255),
-                Math.Clamp(hc.MaxB / 2, 0, 255));
-    }
-
-    // ── Quick-change color pick handlers ───────────────────────────
-
-    private void TapColorPickBtn_Click(object? sender, EventArgs e)
-    {
-        using var picker = new ScreenPicker();
-        if (picker.ShowDialog() == DialogResult.OK && picker.PickedColor != null)
-        {
-            var c = picker.PickedColor.Value;
-            var nc = ConfigManager.Instance.Detection.NoteColor;
-            nc.MinR = Math.Max(0, c.R - 30);
-            nc.MinG = Math.Max(0, c.G - 30);
-            nc.MaxB = Math.Min(255, c.B + 30);
-            nc.PickedR = c.R;
-            nc.PickedG = c.G;
-            nc.PickedB = c.B;
-            _tapColorSwatch.BackColor = c;
-            _tapColorRgb.Text = $"R:{c.R} G:{c.G} B:{c.B}";
-            ConfigManager.Instance.SaveSettings();
-        }
-    }
-
-    private void HoldColorPickBtn_Click(object? sender, EventArgs e)
-    {
-        using var picker = new ScreenPicker();
-        if (picker.ShowDialog() == DialogResult.OK && picker.PickedColor != null)
-        {
-            var c = picker.PickedColor.Value;
-            var hc = ConfigManager.Instance.Detection.HoldColor;
-            hc.MinR = Math.Max(0, c.R - 40);
-            hc.MaxR = Math.Min(255, c.R + 40);
-            hc.MinG = Math.Max(0, c.G - 40);
-            hc.MaxG = Math.Min(255, c.G + 40);
-            hc.MaxB = Math.Min(255, c.B + 30);
-            hc.MinRG = Math.Max(0, c.R + c.G - 30);
-            hc.PickedR = c.R;
-            hc.PickedG = c.G;
-            hc.PickedB = c.B;
-            _holdColorSwatch.BackColor = c;
-            ConfigManager.Instance.SaveSettings();
-        }
     }
 
     // ── Remote control methods ────────────────────────────────────
@@ -517,8 +358,7 @@ internal sealed class MainTab : UserControl
         {
             var s = _engine.States[i];
             _laneLabels[i].Text = $"{MacroEngine.LaneNames[i]}: {s}";
-            // TODO universal-detection: fix during Task 8/9/11
-            _laneLabels[i].ForeColor = s != MacroEngine.LaneState.Released
+            _laneLabels[i].ForeColor = s == MacroEngine.LaneState.Pressing
                 ? MacroEngine.LaneColors[i] : ConfigManager.Instance.Theme.GetTextColor();
         }
 

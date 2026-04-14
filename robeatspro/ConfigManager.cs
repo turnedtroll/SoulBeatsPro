@@ -320,11 +320,6 @@ internal sealed class ConfigManager
 
     public TuningSettings Tuning => ActiveProfile.Tuning;
 
-    // TEMP shim: legacy Detection/IsWhiteGrayMode used by consumers rewritten in Tasks 7–11.
-    private readonly DetectionSettings _shimDetection = new();
-    public DetectionSettings Detection => _shimDetection;
-    public bool IsWhiteGrayMode => GameMode.ActiveProfileName == "Funky Friday";
-
     private AppSettings _settings = new();
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -506,30 +501,3 @@ internal sealed class ConfigManager
     }
 }
 
-// ── TEMP shims until Tasks 7–11 rewrite consumers. ──────────────
-// These recreate the old detection-settings POCOs (no longer serialized) so
-// ColorsTab / MacroEngine / GamesTab / etc. still compile. Task 11 deletes them.
-
-internal sealed class DetectionSettings
-{
-    public WhiteGraySettings WhiteGray { get; set; } = new();
-    public NoteColorSettings NoteColor { get; set; } = new();
-    public HoldColorSettings HoldColor { get; set; } = new();
-}
-
-internal sealed class NoteColorSettings
-{
-    public int MinR = 200, MinG = 180, MaxB = 80;
-    public int PickedR = -1, PickedG = -1, PickedB = -1;
-}
-
-internal sealed class HoldColorSettings
-{
-    public int MinR = 120, MaxR = 200, MinG = 100, MaxG = 180, MaxB = 80, MinRG = 230;
-    public int PickedR = -1, PickedG = -1, PickedB = -1;
-}
-
-internal sealed class WhiteGraySettings
-{
-    public int WhiteMin = 240, GrayMin = 130, GrayMax = 170;
-}

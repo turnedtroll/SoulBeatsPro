@@ -37,13 +37,16 @@ internal sealed class MacroEngine
     public Point[] TapPixels { get; private set; } = null!;
     public Point[] HoldPixels { get; private set; } = null!;
 
-    // Kept for DebugForm compatibility with older UI — always zero under the new engine.
-    public int[] NoteCounts => _matchCountsDebug;
-    public int[] TapHoldCounts { get; } = new int[4];
-    public int[] HoldZoneCounts { get; } = new int[4];
-    public bool[] HoldIncoming { get; } = new bool[4];
-    public bool[] HoldSawTail { get; } = new bool[4];
-    public bool WhiteGrayMode => false;
+    /// <summary>True for any lane whose press is currently delayed by an accuracy preset.</summary>
+    public bool[] PendingScheduled
+    {
+        get
+        {
+            var arr = new bool[4];
+            for (int i = 0; i < 4; i++) arr[i] = _scheduledPressAt[i] > 0;
+            return arr;
+        }
+    }
 
     // Private state
     private readonly DetectionLane[] _lanes = new DetectionLane[4];
