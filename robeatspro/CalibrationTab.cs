@@ -29,6 +29,15 @@ internal sealed class CalibrationTab : UserControl
     private readonly Button _btnRevert;
     private readonly Button _btnRescan;
     private bool _rescanRequested;
+
+    // Signature-capture walk state
+    private readonly Button _btnCaptureSigs;
+    private readonly Button _btnCaptureSkip;
+    private readonly Button _btnCaptureCancel;
+    private readonly Label _captureStatusLabel;
+    private bool _captureRunning;
+    private bool _captureSkipHoldRequested;
+    private bool _captureCancelRequested;
     private readonly Button[] _tapBtns = new Button[4];
     private readonly Button[] _holdBtns = new Button[4];
 
@@ -260,6 +269,57 @@ internal sealed class CalibrationTab : UserControl
         };
         snapBtn.Click += (_, _) => SnapSelectedToBody();
         _sidebar.Controls.Add(snapBtn);
+
+        sy += 30;
+
+        _btnCaptureSigs = new Button
+        {
+            Text = "Capture Signatures",
+            Font = sideFont,
+            Size = new Size(btnW, 26),
+            Location = new Point(pad, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace()
+        };
+        _btnCaptureSigs.Click += BtnCaptureSigs_Click;
+        _sidebar.Controls.Add(_btnCaptureSigs);
+
+        sy += 30;
+
+        _captureStatusLabel = new Label
+        {
+            Text = "",
+            Font = sideFont,
+            ForeColor = ConfigManager.Instance.Theme.GetTextColor(),
+            Size = new Size(btnW, 32),
+            Location = new Point(pad, sy),
+            Visible = false
+        };
+        _sidebar.Controls.Add(_captureStatusLabel);
+        sy += 36;
+
+        _btnCaptureSkip = new Button
+        {
+            Text = "Skip Hold",
+            Font = sideFont,
+            Size = new Size(btnW / 2, 22),
+            Location = new Point(pad, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace(),
+            Visible = false
+        };
+        _btnCaptureSkip.Click += (_, _) => _captureSkipHoldRequested = true;
+        _sidebar.Controls.Add(_btnCaptureSkip);
+
+        _btnCaptureCancel = new Button
+        {
+            Text = "Cancel",
+            Font = sideFont,
+            Size = new Size(btnW / 2 - 4, 22),
+            Location = new Point(pad + btnW / 2 + 2, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace(),
+            Visible = false
+        };
+        _btnCaptureCancel.Click += (_, _) => _captureCancelRequested = true;
+        _sidebar.Controls.Add(_btnCaptureCancel);
 
         // ── PictureBox ───────────────────────────────────────────
         _pic = new PictureBox
@@ -825,6 +885,133 @@ internal sealed class CalibrationTab : UserControl
         _isDragging = false;
         _dragging = null;
         _pic.Cursor = Cursors.Cross;
+    }
+
+    // ── Signature capture walk ───────────────────────────────────
+
+    private async void BtnCaptureSigs_Click(object? sender, EventArgs e)
+    {
+        if (_captureRunning) return;
+        if (!_previewing || _capture == null)
+        {
+            MessageBox.Show(this, "Start Preview first so signatures can be captured from the live screen.",
+                "Capture Signatures", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _captureRunning = true;
+        _captureCancelRequested = false;
+        _btnCaptureSigs.Enabled = false;
+        _btnCaptureSkip.Visible = true;
+        _btnCaptureCancel.Visible = true;
+        _captureStatusLabel.Visible = true;
+
+        bool completed = false;
+        try
+        {
+            completed = await RunCaptureWalkAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Capture failed: {ex.Message}", "Capture Signatures",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _captureRunning = false;
+            _captureSkipHoldRequested = false;
+            _captureCancelRequested = false;
+            _btnCaptureSigs.Enabled = true;
+            _btnCaptureSkip.Visible = false;
+            _btnCaptureCancel.Visible = false;
+            _captureStatusLabel.Visible = false;
+        }
+
+        if (completed)
+        {
+            ConfigManager.Instance.SaveSettings();
+            MessageBox.Show(this, "Signature capture complete and saved.", "Capture Signatures",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+    }
+
+    private async Task<bool> RunCaptureWalkAsync()
+    {
+        var profile = ConfigManager.Instance.ActiveProfile;
+        var sigs = profile.Signatures;
+
+        for (int lane = 0; lane < 4; lane++)
+        {
+            // Tap entry (index 0) — required for every lane
+            var tapEntry = await CaptureEntryAsync(lane, isHold: false);
+            if (_captureCancelRequested) return false;
+            if (tapEntry == null) return false;
+            StoreEntry(sigs[lane], 0, tapEntry);
+
+            // Hold entry (index 1) — user can skip
+            _captureSkipHoldRequested = false;
+            var holdEntry = await CaptureEntryAsync(lane, isHold: true);
+            if (_captureCancelRequested) return false;
+            if (holdEntry != null)
+                StoreEntry(sigs[lane], 1, holdEntry);
+            // if null (skipped), leave any existing hold entry at index 1 untouched
+        }
+
+        _captureStatusLabel.Text = "Saving...";
+        return true;
+    }
+
+    private async Task<ColorSignatureEntry?> CaptureEntryAsync(int lane, bool isHold)
+    {
+        const int frameCount = 10;
+        const int frameDelayMs = 20;
+        var samples = new List<(byte r, byte g, byte b)>(frameCount);
+        var pts = isHold ? _holdPts : _tapPts;
+        var pt = pts[lane];
+        int cx = pt.X - _monitorBounds.Left;
+        int cy = pt.Y - _monitorBounds.Top;
+
+        string kindWord = isHold ? "hold" : "tap";
+        _captureStatusLabel.Text = $"Lane {LaneNames[lane]} {kindWord}...";
+        _btnCaptureSkip.Enabled = isHold;
+
+        for (int f = 0; f < frameCount; f++)
+        {
+            if (_captureCancelRequested) return null;
+            if (isHold && _captureSkipHoldRequested) return null;
+            if (_capture == null) return null;
+
+            if (cx < 0 || cy < 0 || cx >= _capture.Width || cy >= _capture.Height)
+            {
+                // point outside capture — skip frame
+                await Task.Delay(frameDelayMs);
+                continue;
+            }
+
+            try
+            {
+                _capture.Grab();
+                var px = _capture.ReadPixel(cx, cy);
+                samples.Add(px);
+            }
+            catch
+            {
+                // swallow transient capture errors; keep going
+            }
+
+            _captureStatusLabel.Text = $"Lane {LaneNames[lane]} {kindWord} ({f + 1}/{frameCount})";
+            await Task.Delay(frameDelayMs);
+        }
+
+        if (samples.Count == 0) return null;
+        return SignatureCapture.BuildEntry(samples);
+    }
+
+    private static void StoreEntry(ColorSignature sig, int index, ColorSignatureEntry entry)
+    {
+        while (sig.Entries.Count <= index)
+            sig.Entries.Add(new ColorSignatureEntry(0, 0, 0, 8));
+        sig.Entries[index] = entry;
     }
 
     protected override void Dispose(bool disposing)
