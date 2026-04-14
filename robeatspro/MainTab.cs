@@ -517,7 +517,8 @@ internal sealed class MainTab : UserControl
         {
             var s = _engine.States[i];
             _laneLabels[i].Text = $"{MacroEngine.LaneNames[i]}: {s}";
-            _laneLabels[i].ForeColor = s != MacroEngine.LaneState.Idle
+            // TODO universal-detection: fix during Task 8/9/11
+            _laneLabels[i].ForeColor = s != MacroEngine.LaneState.Released
                 ? MacroEngine.LaneColors[i] : ConfigManager.Instance.Theme.GetTextColor();
         }
 

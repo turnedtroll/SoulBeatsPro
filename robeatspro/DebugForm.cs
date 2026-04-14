@@ -111,10 +111,9 @@ internal sealed class DebugForm : Form
                 tyD = Math.Clamp(tyD, BoxSize, totalH - BoxSize - 1);
 
                 Color tapCol; int tapThick;
-                if (state == MacroEngine.LaneState.Tapped)
+                // TODO universal-detection: fix during Task 8/9/11 — Tapped/Holding collapsed to Pressing under new engine.
+                if (state == MacroEngine.LaneState.Pressing)
                     { tapCol = Color.Yellow; tapThick = 3; }
-                else if (state == MacroEngine.LaneState.Holding)
-                    { tapCol = Color.Lime; tapThick = 3; }
                 else if (_engine.NoteCounts[i] >= 3)
                     { tapCol = Color.White; tapThick = 2; }
                 else
@@ -131,7 +130,8 @@ internal sealed class DebugForm : Form
                 g.DrawString($"T{keyDisp}", lblFont,
                     new SolidBrush(tapCol), txD - BoxSize, tyD - BoxSize - 13);
 
-                if (state != MacroEngine.LaneState.Idle)
+                // TODO universal-detection: fix during Task 8/9/11
+                if (state != MacroEngine.LaneState.Released)
                     g.DrawString(state.ToString().ToUpper(), lblFont,
                         new SolidBrush(tapCol), txD - BoxSize, tyD + BoxSize + 2);
 
@@ -181,14 +181,14 @@ internal sealed class DebugForm : Form
             for (int i = 0; i < 4; i++)
             {
                 var s = _engine.States[i];
+                // TODO universal-detection: fix during Task 8/9/11 — lost Tapped/Holding distinction.
                 string sAbb = s switch
                 {
-                    MacroEngine.LaneState.Idle => "IDLE",
-                    MacroEngine.LaneState.Tapped => "TAP ",
-                    MacroEngine.LaneState.Holding => "HOLD",
+                    MacroEngine.LaneState.Released => "IDLE",
+                    MacroEngine.LaneState.Pressing => "PRES",
                     _ => "????"
                 };
-                var sc = s != MacroEngine.LaneState.Idle ? MacroEngine.LaneColors[i] : Color.Gray;
+                var sc = s != MacroEngine.LaneState.Released ? MacroEngine.LaneColors[i] : Color.Gray;
                 string fl = (_engine.HoldIncoming[i] ? "I" : "") + (_engine.HoldSawTail[i] ? "T" : "");
                 string keyDisp = NativeApi.DisplayName(laneKeys[i]);
 
