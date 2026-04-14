@@ -146,14 +146,17 @@ internal sealed class AppSettings
     [JsonPropertyName("profiles_legacy_twoProfile")]
     public JsonElement? LegacyTwoProfile { get; set; }
 
-    public void Migrate()
+    public bool Migrate()
     {
+        bool changed = false;
+
         if (string.IsNullOrEmpty(GameMode.ActiveProfileName) || GameMode.ActiveProfileName == "Funky Friday")
         {
             if (!string.IsNullOrEmpty(GameMode.LegacyActiveGame))
             {
                 GameMode.ActiveProfileName = GameMode.LegacyActiveGame == "robeats" ? "RoBeats" : "Funky Friday";
                 GameMode.LegacyActiveGame = null;
+                changed = true;
             }
         }
 
@@ -161,6 +164,7 @@ internal sealed class AppSettings
         {
             MigrateTwoProfile(LegacyTwoProfile.Value);
             LegacyTwoProfile = null;
+            changed = true;
         }
 
         if ((LegacyDetection.HasValue || LegacyTuning != null) && Profiles.Count == 0)
@@ -169,12 +173,22 @@ internal sealed class AppSettings
             ApplyLegacyFlat();
             LegacyDetection = null;
             LegacyTuning = null;
+            changed = true;
         }
 
         if (Profiles.Count == 0)
         {
             SeedBuiltInProfiles();
+            changed = true;
         }
+
+        if (GameMode.LegacyActiveGame != null)
+        {
+            GameMode.LegacyActiveGame = null;
+            changed = true;
+        }
+
+        return changed;
     }
 
     private void SeedBuiltInProfiles()
@@ -295,7 +309,12 @@ internal sealed class ConfigManager
         get
         {
             var p = _settings.Profiles.Find(x => x.Name == _settings.GameMode.ActiveProfileName);
-            return p ?? _settings.Profiles[0];
+            if (p != null) return p;
+            if (_settings.Profiles.Count == 0)
+            {
+                _settings.Profiles.Add(new Profile { Name = "Default", IsBuiltIn = false });
+            }
+            return _settings.Profiles[0];
         }
     }
 
@@ -308,7 +327,11 @@ internal sealed class ConfigManager
 
     private AppSettings _settings = new();
 
-    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions JsonOpts = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
 
     private ConfigManager()
     {
@@ -346,20 +369,23 @@ internal sealed class ConfigManager
         {
             var json = File.ReadAllText(SettingsPath);
             _settings = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-            _settings.Migrate();
+            var changed = _settings.Migrate();
             if (File.Exists(CoordsPath))
             {
                 try { File.Delete(CoordsPath); } catch { }
+                changed = true;
             }
-            SaveSettings();
+            if (changed) SaveSettings();
         }
-        catch { _settings = new AppSettings(); _settings.Migrate(); }
+        catch { _settings = new AppSettings(); _settings.Migrate(); SaveSettings(); }
     }
 
     public void SaveSettings()
     {
         var json = JsonSerializer.Serialize(_settings, JsonOpts);
-        File.WriteAllText(SettingsPath, json);
+        var tmp = SettingsPath + ".tmp";
+        File.WriteAllText(tmp, json);
+        File.Move(tmp, SettingsPath, overwrite: true);
     }
 
     /// <summary>
