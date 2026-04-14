@@ -40,16 +40,16 @@ internal sealed class MainForm : Form
         mainPage.Controls.Add(_mainTab);
         _tabs.TabPages.Add(mainPage);
 
-        // Games tab
-        var gamesPage = new ThemedTabPage("Games");
-        var gamesTab = new GamesTab { Dock = DockStyle.Fill };
-        gamesTab.GameModeChanged += () =>
+        // Profiles tab
+        var profilesPage = new ThemedTabPage("Profiles");
+        var profilesTab = new ProfilesTab { Dock = DockStyle.Fill };
+        profilesTab.ActiveProfileChanged += () =>
         {
-            Text = $"SoulBeats Pro — {ConfigManager.Instance.GameMode.ActiveGame}";
+            Text = $"SoulBeats Pro — {ConfigManager.Instance.GameMode.ActiveProfileName}";
             _mainTab.RestartOnGameSwitch();
         };
-        gamesPage.Controls.Add(gamesTab);
-        _tabs.TabPages.Add(gamesPage);
+        profilesPage.Controls.Add(profilesTab);
+        _tabs.TabPages.Add(profilesPage);
 
         // Keybinds tab
         var keybindsPage = new ThemedTabPage("Keybinds");
