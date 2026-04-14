@@ -80,7 +80,7 @@ internal sealed class MacroEngine
         _holdReleaseGrace = t.HoldReleaseGrace;
         _whiteGrayMode = ConfigManager.Instance.IsWhiteGrayMode;
         _accuracyPreset = ConfigManager.Instance.ActiveProfile.AccuracyPreset;
-        _accuracyMaxDelay = AccuracyPresetTable.GetMaxDelaySeconds(_accuracyPreset, _whiteGrayMode);
+        _accuracyMaxDelay = 0.0; // TODO universal-detection — rewritten in Task 7
 
         _stopRequested = false;
         Running = true;

@@ -169,7 +169,7 @@ internal sealed class GamesTab : UserControl
     private void RefreshAccuracyCombo()
     {
         bool ff = ConfigManager.Instance.IsWhiteGrayMode;
-        var labels = AccuracyPresetTable.GetLabels(ff);
+        var labels = new[] { "Max accuracy", "High accuracy", "Human-like", "Sloppy" }; // TODO universal-detection — GamesTab deleted in Task 10
 
         _accuracyCombo.SelectedIndexChanged -= AccuracyCombo_Changed;
         _accuracyCombo.Items.Clear();
