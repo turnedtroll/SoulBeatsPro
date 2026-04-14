@@ -284,6 +284,81 @@ internal sealed class ScreenCapture : IDisposable
     }
 
     /// <summary>
+    /// Count pixels in a (2*half+1) square patch that match any entry in the
+    /// given color signature. This is the one-stop detection primitive used by
+    /// MacroEngine's press-while-present algorithm.
+    /// </summary>
+    public unsafe int CountSignatureMatches(int cx, int cy, int half, ColorSignature sig)
+    {
+        if (sig.Entries.Count == 0) return 0;
+
+        int x0 = Math.Max(0, cx - half);
+        int y0 = Math.Max(0, cy - half);
+        int x1 = Math.Min(Width - 1, cx + half);
+        int y1 = Math.Min(Height - 1, cy + half);
+
+        var data = _bmp.LockBits(
+            new Rectangle(x0, y0, x1 - x0 + 1, y1 - y0 + 1),
+            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+
+        int count = 0;
+        try
+        {
+            int stride = data.Stride;
+            byte* ptr = (byte*)data.Scan0;
+            int w = x1 - x0 + 1;
+            int h = y1 - y0 + 1;
+
+            // Snapshot to locals for the inner loop.
+            int entryCount = sig.Entries.Count;
+            var entries = sig.Entries;
+
+            for (int row = 0; row < h; row++)
+            {
+                byte* line = ptr + row * stride;
+                for (int col = 0; col < w; col++)
+                {
+                    byte b = line[col * 4];
+                    byte g = line[col * 4 + 1];
+                    byte r = line[col * 4 + 2];
+
+                    for (int e = 0; e < entryCount; e++)
+                    {
+                        var entry = entries[e];
+                        int tol = entry.Tolerance;
+                        if (Math.Abs(r - entry.R) <= tol &&
+                            Math.Abs(g - entry.G) <= tol &&
+                            Math.Abs(b - entry.B) <= tol)
+                        {
+                            count++;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        finally { _bmp.UnlockBits(data); }
+
+        return count;
+    }
+
+    /// <summary>Read the raw BGR pixel at a single relative coordinate.</summary>
+    public unsafe (byte r, byte g, byte b) ReadPixel(int cx, int cy)
+    {
+        int x = Math.Clamp(cx, 0, Width - 1);
+        int y = Math.Clamp(cy, 0, Height - 1);
+        var data = _bmp.LockBits(
+            new Rectangle(x, y, 1, 1),
+            ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+        try
+        {
+            byte* p = (byte*)data.Scan0;
+            return (p[2], p[1], p[0]);
+        }
+        finally { _bmp.UnlockBits(data); }
+    }
+
+    /// <summary>
     /// Analyze a (2*half+1) square patch. Honors the active detection mode
     /// (WhiteGray vs Color-based) so callers don't need to branch.
     /// If `includePixels` is true, the returned struct includes per-pixel
