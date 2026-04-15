@@ -96,6 +96,21 @@ internal sealed class ScreenCapture : IDisposable
     /// given color signature. This is the one-stop detection primitive used by
     /// MacroEngine's press-while-present algorithm.
     /// </summary>
+    /// <summary>
+    /// Snapshot the entries list into an array so the hot inner loops are immune
+    /// to concurrent mutation from UI edits (tolerance slider, add/delete,
+    /// learning commits). Retries once on a racing mutation.
+    /// </summary>
+    private static ColorSignatureEntry[] SnapshotEntries(ColorSignature sig)
+    {
+        try { return sig.Entries.ToArray(); }
+        catch
+        {
+            try { return sig.Entries.ToArray(); }
+            catch { return Array.Empty<ColorSignatureEntry>(); }
+        }
+    }
+
     public unsafe int CountSignatureMatches(int cx, int cy, int half, ColorSignature sig)
     {
         if (sig.Entries.Count == 0) return 0;
@@ -117,8 +132,8 @@ internal sealed class ScreenCapture : IDisposable
             int w = x1 - x0 + 1;
             int h = y1 - y0 + 1;
 
-            int entryCount = sig.Entries.Count;
-            var entries = sig.Entries;
+            var entries = SnapshotEntries(sig);
+            int entryCount = entries.Length;
 
             for (int row = 0; row < h; row++)
             {
@@ -193,8 +208,8 @@ internal sealed class ScreenCapture : IDisposable
 
         try
         {
-            int entryCount = sig.Entries.Count;
-            var entries = sig.Entries;
+            var entries = SnapshotEntries(sig);
+            int entryCount = entries.Length;
 
             int stride = data.Stride;
             byte* ptr = (byte*)data.Scan0;
@@ -271,8 +286,8 @@ internal sealed class ScreenCapture : IDisposable
 
         try
         {
-            int entryCount = sig.Entries.Count;
-            var entries = sig.Entries;
+            var entries = SnapshotEntries(sig);
+            int entryCount = entries.Length;
 
             int stride = data.Stride;
             byte* ptr = (byte*)data.Scan0;

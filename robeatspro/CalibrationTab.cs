@@ -30,14 +30,15 @@ internal sealed class CalibrationTab : UserControl
     private readonly Button _btnRescan;
     private bool _rescanRequested;
 
-    // Signature-capture walk state
-    private readonly Button _btnCaptureSigs;
-    private readonly Button _btnCaptureSkip;
-    private readonly Button _btnCaptureCancel;
+    // Signature-capture state (Quick / Learning / Manual)
+    private readonly Button _btnQuickCalibrate;
+    private readonly Button _btnLearning;
+    private readonly Button _btnManualAdd;
     private readonly Label _captureStatusLabel;
+    private SignatureLearner? _learner;
+    private System.Windows.Forms.Timer? _learningTimer;
     private bool _captureRunning;
-    private bool _captureSkipHoldRequested;
-    private bool _captureCancelRequested;
+    private const int LearningAutoStopSeconds = 300;
     private readonly Button[] _tapBtns = new Button[4];
     private readonly Button[] _holdBtns = new Button[4];
 
@@ -272,17 +273,40 @@ internal sealed class CalibrationTab : UserControl
 
         sy += 30;
 
-        _btnCaptureSigs = new Button
+        _btnQuickCalibrate = new Button
         {
-            Text = "Capture Signatures",
+            Text = "Quick Calibrate",
             Font = sideFont,
             Size = new Size(btnW, 26),
             Location = new Point(pad, sy),
             BackColor = ConfigManager.Instance.Theme.GetButtonFace()
         };
-        _btnCaptureSigs.Click += BtnCaptureSigs_Click;
-        _sidebar.Controls.Add(_btnCaptureSigs);
+        _btnQuickCalibrate.Click += BtnQuickCalibrate_Click;
+        _sidebar.Controls.Add(_btnQuickCalibrate);
+        sy += 30;
 
+        _btnLearning = new Button
+        {
+            Text = "Start Learning",
+            Font = sideFont,
+            Size = new Size(btnW, 26),
+            Location = new Point(pad, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace()
+        };
+        _btnLearning.Click += BtnLearning_Click;
+        _sidebar.Controls.Add(_btnLearning);
+        sy += 30;
+
+        _btnManualAdd = new Button
+        {
+            Text = "Manual Add",
+            Font = sideFont,
+            Size = new Size(btnW, 26),
+            Location = new Point(pad, sy),
+            BackColor = ConfigManager.Instance.Theme.GetButtonFace()
+        };
+        _btnManualAdd.Click += BtnManualAdd_Click;
+        _sidebar.Controls.Add(_btnManualAdd);
         sy += 30;
 
         _captureStatusLabel = new Label
@@ -290,36 +314,12 @@ internal sealed class CalibrationTab : UserControl
             Text = "",
             Font = sideFont,
             ForeColor = ConfigManager.Instance.Theme.GetTextColor(),
-            Size = new Size(btnW, 32),
+            Size = new Size(btnW, 48),
             Location = new Point(pad, sy),
             Visible = false
         };
         _sidebar.Controls.Add(_captureStatusLabel);
-        sy += 36;
-
-        _btnCaptureSkip = new Button
-        {
-            Text = "Skip Hold",
-            Font = sideFont,
-            Size = new Size(btnW / 2, 22),
-            Location = new Point(pad, sy),
-            BackColor = ConfigManager.Instance.Theme.GetButtonFace(),
-            Visible = false
-        };
-        _btnCaptureSkip.Click += (_, _) => _captureSkipHoldRequested = true;
-        _sidebar.Controls.Add(_btnCaptureSkip);
-
-        _btnCaptureCancel = new Button
-        {
-            Text = "Cancel",
-            Font = sideFont,
-            Size = new Size(btnW / 2 - 4, 22),
-            Location = new Point(pad + btnW / 2 + 2, sy),
-            BackColor = ConfigManager.Instance.Theme.GetButtonFace(),
-            Visible = false
-        };
-        _btnCaptureCancel.Click += (_, _) => _captureCancelRequested = true;
-        _sidebar.Controls.Add(_btnCaptureCancel);
+        sy += 52;
 
         // ── PictureBox ───────────────────────────────────────────
         _pic = new PictureBox
@@ -894,136 +894,177 @@ internal sealed class CalibrationTab : UserControl
         _pic.Cursor = Cursors.Cross;
     }
 
-    // ── Signature capture walk ───────────────────────────────────
+    // ── Signature capture (Quick / Learning / Manual) ───────────
 
-    private async void BtnCaptureSigs_Click(object? sender, EventArgs e)
+    private async void BtnQuickCalibrate_Click(object? sender, EventArgs e)
     {
         if (_captureRunning) return;
-        if (!_previewing || _capture == null)
+        if (!_previewing)
         {
-            MessageBox.Show(this, "Start Preview first so signatures can be captured from the live screen.",
-                "Capture Signatures", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Start Preview first so the capture has a target monitor.",
+                "Quick Calibrate", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
         _captureRunning = true;
-        _captureCancelRequested = false;
-        _btnCaptureSigs.Enabled = false;
-        _btnCaptureSkip.Visible = true;
-        _btnCaptureCancel.Visible = true;
+        _btnQuickCalibrate.Enabled = false;
+        _btnLearning.Enabled = false;
+        _btnManualAdd.Enabled = false;
         _captureStatusLabel.Visible = true;
+        _captureStatusLabel.Text = "Quick calibrating (1s)...";
 
-        bool completed = false;
+        var learner = new SignatureLearner();
         try
         {
-            completed = await RunCaptureWalkAsync();
+            learner.Start(_monitorBounds, _tapPts);
+            await Task.Delay(1000);
+            var buffers = learner.Stop();
+            ApplyCaptureResults(buffers);
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, $"Capture failed: {ex.Message}", "Capture Signatures",
+            MessageBox.Show(this, $"Quick Calibrate failed: {ex.Message}", "Quick Calibrate",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
+            learner.Dispose();
             _captureRunning = false;
-            _captureSkipHoldRequested = false;
-            _captureCancelRequested = false;
-            _btnCaptureSigs.Enabled = true;
-            _btnCaptureSkip.Visible = false;
-            _btnCaptureCancel.Visible = false;
-            _captureStatusLabel.Visible = false;
-        }
-
-        if (completed)
-        {
-            ConfigManager.Instance.SaveSettings();
-            MessageBox.Show(this, "Signature capture complete and saved.", "Capture Signatures",
-                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _btnQuickCalibrate.Enabled = true;
+            _btnLearning.Enabled = true;
+            _btnManualAdd.Enabled = true;
         }
     }
 
-    private async Task<bool> RunCaptureWalkAsync()
+    private void BtnLearning_Click(object? sender, EventArgs e)
+    {
+        if (_learner != null && _learner.IsRunning)
+        {
+            StopLearning(autoStopped: false);
+            return;
+        }
+
+        if (!_previewing)
+        {
+            MessageBox.Show(this, "Start Preview first so Learning has a target monitor.",
+                "Learning", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _learner = new SignatureLearner();
+        _learner.Start(_monitorBounds, _tapPts);
+
+        _btnLearning.Text = "Stop Learning";
+        _btnQuickCalibrate.Enabled = false;
+        _btnManualAdd.Enabled = false;
+        _captureStatusLabel.Visible = true;
+        _captureStatusLabel.Text = "Learning...";
+
+        _learningTimer?.Dispose();
+        _learningTimer = new System.Windows.Forms.Timer { Interval = 250 };
+        _learningTimer.Tick += LearningTimer_Tick;
+        _learningTimer.Start();
+    }
+
+    private void LearningTimer_Tick(object? sender, EventArgs e)
+    {
+        if (_learner == null) return;
+        var counts = _learner.Snapshot();
+        var elapsed = _learner.Elapsed;
+        _captureStatusLabel.Text =
+            $"Learning {(int)elapsed.TotalSeconds}s\n" +
+            $"L1:{counts[0]} L2:{counts[1]}\n" +
+            $"L3:{counts[2]} L4:{counts[3]}";
+
+        if (elapsed.TotalSeconds >= LearningAutoStopSeconds)
+            StopLearning(autoStopped: true);
+    }
+
+    private void StopLearning(bool autoStopped)
+    {
+        _learningTimer?.Stop();
+        _learningTimer?.Dispose();
+        _learningTimer = null;
+
+        if (_learner == null) return;
+        var buffers = _learner.Stop();
+        _learner.Dispose();
+        _learner = null;
+
+        _btnLearning.Text = "Start Learning";
+        _btnQuickCalibrate.Enabled = true;
+        _btnManualAdd.Enabled = true;
+
+        ApplyCaptureResults(buffers, autoStoppedSuffix: autoStopped ? " (auto-stopped at 5min)" : null);
+    }
+
+    private void BtnManualAdd_Click(object? sender, EventArgs e)
+    {
+        using var dlg = new ManualAddDialog();
+        if (dlg.ShowDialog(this) != DialogResult.OK || dlg.PickedColor == null) return;
+
+        int lane = dlg.SelectedLane;
+        var c = dlg.PickedColor.Value;
+        var entry = new ColorSignatureEntry(c.R, c.G, c.B, tolerance: 12, learned: false);
+
+        var sig = ConfigManager.Instance.ActiveProfile.Signatures[lane];
+        sig.Entries.Add(entry);
+        ConfigManager.Instance.SaveSettings();
+        ConfigManager.Instance.NotifySignaturesChanged();
+
+        _captureStatusLabel.Visible = true;
+        _captureStatusLabel.Text = $"Manual: added L{lane + 1} (R={c.R} G={c.G} B={c.B})";
+    }
+
+    /// <summary>
+    /// Run BuildEntry per lane, commit successes (overwrite existing learned entry
+    /// or append new), and report a per-lane summary in the status label.
+    /// </summary>
+    private void ApplyCaptureResults(List<(byte r, byte g, byte b)>[] buffers, string? autoStoppedSuffix = null)
     {
         var profile = ConfigManager.Instance.ActiveProfile;
-        var sigs = profile.Signatures;
+        var summary = new System.Text.StringBuilder();
+        bool anyChanged = false;
 
         for (int lane = 0; lane < 4; lane++)
         {
-            // Tap entry (index 0) — required for every lane
-            var tapEntry = await CaptureEntryAsync(lane, isHold: false);
-            if (_captureCancelRequested) return false;
-            if (tapEntry == null) return false;
-            StoreEntry(sigs[lane], 0, tapEntry);
+            var result = SignatureCapture.BuildEntry(buffers[lane]);
+            if (result.Ok && result.Entry != null)
+            {
+                var sig = profile.Signatures[lane];
+                int existingLearnedIdx = sig.Entries.FindIndex(e => e.Learned);
+                if (existingLearnedIdx >= 0)
+                    sig.Entries[existingLearnedIdx] = result.Entry;
+                else
+                    sig.Entries.Add(result.Entry);
 
-            // Hold entry (index 1) — user can skip
-            _captureSkipHoldRequested = false;
-            var holdEntry = await CaptureEntryAsync(lane, isHold: true);
-            if (_captureCancelRequested) return false;
-            if (holdEntry != null)
-                StoreEntry(sigs[lane], 1, holdEntry);
-            // if null (skipped), leave any existing hold entry at index 1 untouched
+                summary.AppendLine($"L{lane + 1}: ok ({buffers[lane].Count} samp)");
+                anyChanged = true;
+            }
+            else
+            {
+                summary.AppendLine($"L{lane + 1}: {result.FailureReason}");
+            }
         }
 
-        _captureStatusLabel.Text = "Saving...";
-        return true;
-    }
-
-    private async Task<ColorSignatureEntry?> CaptureEntryAsync(int lane, bool isHold)
-    {
-        const int frameCount = 10;
-        const int frameDelayMs = 20;
-        var samples = new List<(byte r, byte g, byte b)>(frameCount);
-        var pts = isHold ? _holdPts : _tapPts;
-        var pt = pts[lane];
-        int cx = pt.X - _monitorBounds.Left;
-        int cy = pt.Y - _monitorBounds.Top;
-
-        string kindWord = isHold ? "hold" : "tap";
-        _captureStatusLabel.Text = $"Lane {LaneNames[lane]} {kindWord}...";
-        _btnCaptureSkip.Enabled = isHold;
-
-        for (int f = 0; f < frameCount; f++)
+        if (anyChanged)
         {
-            if (_captureCancelRequested) return null;
-            if (isHold && _captureSkipHoldRequested) return null;
-            if (_capture == null) return null;
-
-            if (cx < 0 || cy < 0 || cx >= _capture.Width || cy >= _capture.Height)
-            {
-                // point outside capture — skip frame
-                await Task.Delay(frameDelayMs);
-                continue;
-            }
-
-            try
-            {
-                _capture.Grab();
-                var px = _capture.ReadPixel(cx, cy);
-                samples.Add(px);
-            }
-            catch
-            {
-                // swallow transient capture errors; keep going
-            }
-
-            _captureStatusLabel.Text = $"Lane {LaneNames[lane]} {kindWord} ({f + 1}/{frameCount})";
-            await Task.Delay(frameDelayMs);
+            ConfigManager.Instance.SaveSettings();
+            ConfigManager.Instance.NotifySignaturesChanged();
         }
 
-        if (samples.Count == 0) return null;
-        return SignatureCapture.BuildEntry(samples);
-    }
-
-    private static void StoreEntry(ColorSignature sig, int index, ColorSignatureEntry entry)
-    {
-        while (sig.Entries.Count <= index)
-            sig.Entries.Add(new ColorSignatureEntry(0, 0, 0, 8));
-        sig.Entries[index] = entry;
+        _captureStatusLabel.Visible = true;
+        _captureStatusLabel.Text = summary.ToString().TrimEnd() + (autoStoppedSuffix ?? "");
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing) StopPreview();
+        if (disposing)
+        {
+            StopPreview();
+            _learningTimer?.Dispose();
+            _learner?.Dispose();
+        }
         base.Dispose(disposing);
     }
 

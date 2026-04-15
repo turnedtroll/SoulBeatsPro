@@ -8,12 +8,13 @@ internal sealed class ColorSignatureEntry
     [JsonPropertyName("g")] public int G { get; set; }
     [JsonPropertyName("b")] public int B { get; set; }
     [JsonPropertyName("tolerance")] public int Tolerance { get; set; }
+    [JsonPropertyName("learned")] public bool Learned { get; set; } = false;
 
     public ColorSignatureEntry() { }
 
-    public ColorSignatureEntry(int r, int g, int b, int tolerance)
+    public ColorSignatureEntry(int r, int g, int b, int tolerance, bool learned = false)
     {
-        R = r; G = g; B = b; Tolerance = tolerance;
+        R = r; G = g; B = b; Tolerance = tolerance; Learned = learned;
     }
 }
 

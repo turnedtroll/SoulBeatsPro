@@ -320,6 +320,15 @@ internal sealed class ConfigManager
 
     public TuningSettings Tuning => ActiveProfile.Tuning;
 
+    /// <summary>
+    /// Raised whenever a signature mutation has been persisted. ColorsTab and any
+    /// other live consumers should re-render in response. SaveSettings() does NOT
+    /// raise this — only the explicit signature-mutating call sites should.
+    /// </summary>
+    public event Action? ProfileSignaturesChanged;
+
+    public void NotifySignaturesChanged() => ProfileSignaturesChanged?.Invoke();
+
     private AppSettings _settings = new();
 
     private static readonly JsonSerializerOptions JsonOpts = new()

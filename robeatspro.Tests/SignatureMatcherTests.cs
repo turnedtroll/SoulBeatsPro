@@ -71,33 +71,4 @@ public class SignatureMatcherTests
         Assert.Equal(3, count);
     }
 
-    [Fact]
-    public void build_entry_uses_mean_with_floor_tolerance()
-    {
-        var samples = new List<(byte, byte, byte)>
-        {
-            ((byte)200, (byte)150, (byte)100),
-            ((byte)202, (byte)152, (byte)98),
-            ((byte)198, (byte)148, (byte)102),
-        };
-        var entry = SignatureCapture.BuildEntry(samples, floorTolerance: 8);
-        Assert.Equal(200, entry.R);
-        Assert.Equal(150, entry.G);
-        Assert.Equal(100, entry.B);
-        Assert.Equal(8, entry.Tolerance); // all deviations <= 2, floor applies
-    }
-
-    [Fact]
-    public void build_entry_grows_tolerance_with_variance()
-    {
-        var samples = new List<(byte, byte, byte)>
-        {
-            ((byte)200, (byte)100, (byte)50),
-            ((byte)220, (byte)100, (byte)50),
-            ((byte)180, (byte)100, (byte)50),
-        };
-        var entry = SignatureCapture.BuildEntry(samples, floorTolerance: 8);
-        Assert.Equal(200, entry.R);
-        Assert.Equal(20, entry.Tolerance); // max deviation is 20
-    }
 }

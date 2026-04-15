@@ -167,7 +167,8 @@ internal sealed class MacroEngine
                         }
                         else
                         {
-                            double delay = _rng.NextDouble() * _accuracyMaxDelay;
+                            double delay = AccuracyPresetTable.SampleDelaySeconds(
+                                _accuracyPreset, _maxJudgmentMs, _rng);
                             _scheduledPressAt[i] = now + delay;
                         }
                         break;
