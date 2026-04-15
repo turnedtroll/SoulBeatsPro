@@ -25,7 +25,7 @@ public class AccuracyPresetTests
     [Fact]
     public void get_max_delay_honors_profile_judgment_window()
     {
-        // Sloppy clamp is 110ms; with a tighter 80ms profile window it should cap there.
+        // Sloppy clamp is 95ms; with a tighter 80ms profile window it should cap there.
         double d = AccuracyPresetTable.GetMaxDelaySeconds(AccuracyPreset.Sloppy, 80);
         Assert.Equal(0.080, d, 3);
     }
@@ -33,9 +33,9 @@ public class AccuracyPresetTests
     [Fact]
     public void get_max_delay_uses_preset_clamp_when_profile_is_looser()
     {
-        // Funky-Friday-ish 140ms profile; Sloppy's 110ms clamp should win.
+        // Funky-Friday-ish 140ms profile; Sloppy's 95ms clamp should win.
         double d = AccuracyPresetTable.GetMaxDelaySeconds(AccuracyPreset.Sloppy, 140);
-        Assert.Equal(0.110, d, 3);
+        Assert.Equal(0.095, d, 3);
     }
 
     [Fact]

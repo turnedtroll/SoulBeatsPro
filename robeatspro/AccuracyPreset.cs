@@ -35,7 +35,7 @@ internal static class AccuracyPresetTable
         new(0,  0,  0),
         new(10, 12, 40),
         new(25, 20, 75),
-        new(45, 30, 110)
+        new(35, 25, 95)
     };
 
     public static PresetTuning GetTuning(AccuracyPreset preset)
