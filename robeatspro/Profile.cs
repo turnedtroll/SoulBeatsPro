@@ -24,6 +24,12 @@ internal sealed class ColorSignature
     public List<ColorSignatureEntry> Entries { get; set; } = new();
 }
 
+internal enum DetectionMode
+{
+    PixelBased = 0,
+    BeatmapFile = 1
+}
+
 internal sealed class Profile
 {
     [JsonPropertyName("name")] public string Name { get; set; } = "New Profile";
@@ -36,4 +42,7 @@ internal sealed class Profile
     [JsonPropertyName("tuning")] public TuningSettings Tuning { get; set; } = new();
     [JsonPropertyName("accuracyPreset")] public AccuracyPreset AccuracyPreset { get; set; } = AccuracyPreset.PerfectOnly;
     [JsonPropertyName("maxJudgmentMs")] public double MaxJudgmentMs { get; set; } = 100.0;
+    [JsonPropertyName("detectionMode")] public DetectionMode DetectionMode { get; set; } = DetectionMode.PixelBased;
+    [JsonPropertyName("maniaKeys")] public string[] ManiaKeys { get; set; } = ["D", "F", "J", "K"];
+    [JsonPropertyName("osuSongsPath")] public string OsuSongsPath { get; set; } = "";
 }
