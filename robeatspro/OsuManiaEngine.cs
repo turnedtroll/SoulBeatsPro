@@ -22,6 +22,7 @@ internal sealed class OsuManiaEngine
     private readonly OsuBeatmap _beatmap;
     private readonly ushort[] _scanCodes;
     private readonly int _keyCount;
+    private readonly bool[] _held;
     private volatile bool _stopRequested;
     private readonly Random _rng = new();
 
@@ -34,6 +35,7 @@ internal sealed class OsuManiaEngine
         _beatmap = beatmap;
         _scanCodes = scanCodes;
         _keyCount = beatmap.KeyCount;
+        _held = new bool[beatmap.KeyCount];
     }
 
     public void Stop() => _stopRequested = true;
@@ -92,6 +94,14 @@ internal sealed class OsuManiaEngine
             return;
         }
 
+        // Pre-compute accuracy jitter for each press event (sample once, not every spin)
+        var jitterMs = new double[schedule.Count];
+        for (int i = 0; i < schedule.Count; i++)
+        {
+            if (schedule[i].Kind == ScheduledEventKind.Press)
+                jitterMs[i] = AccuracyPresetTable.SampleDelaySeconds(preset, maxJudgmentMs, _rng) * 1000.0;
+        }
+
         // === SYNC PHASE ===
         SyncStatus = "Waiting for first note...";
 
@@ -144,9 +154,13 @@ internal sealed class OsuManiaEngine
             if (matchCount >= minPixels)
             {
                 if (syncColumn < _scanCodes.Length)
+                {
                     NativeApi.PressScan(_scanCodes[syncColumn]);
+                    _held[syncColumn] = true;
+                }
 
-                _parent.States[syncColumn] = MacroEngine.LaneState.Pressing;
+                if (syncColumn < _parent.States.Length)
+                    _parent.States[syncColumn] = MacroEngine.LaneState.Pressing;
                 anchorWallTime = sw.Elapsed.TotalSeconds;
                 synced = true;
                 SyncStatus = "Synced";
@@ -161,8 +175,12 @@ internal sealed class OsuManiaEngine
                     Thread.SpinWait(100);
 
                 if (syncColumn < _scanCodes.Length)
+                {
                     NativeApi.ReleaseScan(_scanCodes[syncColumn]);
-                _parent.States[syncColumn] = MacroEngine.LaneState.Released;
+                    _held[syncColumn] = false;
+                }
+                if (syncColumn < _parent.States.Length)
+                    _parent.States[syncColumn] = MacroEngine.LaneState.Released;
             }
 
             Thread.SpinWait(100);
@@ -204,10 +222,7 @@ internal sealed class OsuManiaEngine
                 double targetMs = evt.TimeMs;
 
                 if (evt.Kind == ScheduledEventKind.Press)
-                {
-                    double delayMs = AccuracyPresetTable.SampleDelaySeconds(preset, maxJudgmentMs, _rng) * 1000.0;
-                    targetMs += delayMs;
-                }
+                    targetMs += jitterMs[eventIdx];
 
                 if (currentBeatmapMs < targetMs) break;
 
@@ -215,13 +230,21 @@ internal sealed class OsuManiaEngine
                 {
                     if (evt.Kind == ScheduledEventKind.Press)
                     {
-                        NativeApi.PressScan(_scanCodes[evt.Column]);
+                        if (!_held[evt.Column])
+                        {
+                            NativeApi.PressScan(_scanCodes[evt.Column]);
+                            _held[evt.Column] = true;
+                        }
                         if (evt.Column < _parent.States.Length)
                             _parent.States[evt.Column] = MacroEngine.LaneState.Pressing;
                     }
                     else
                     {
-                        NativeApi.ReleaseScan(_scanCodes[evt.Column]);
+                        if (_held[evt.Column])
+                        {
+                            NativeApi.ReleaseScan(_scanCodes[evt.Column]);
+                            _held[evt.Column] = false;
+                        }
                         if (evt.Column < _parent.States.Length)
                             _parent.States[evt.Column] = MacroEngine.LaneState.Released;
                     }
@@ -240,7 +263,11 @@ internal sealed class OsuManiaEngine
     {
         for (int i = 0; i < _scanCodes.Length; i++)
         {
-            NativeApi.ReleaseScan(_scanCodes[i]);
+            if (i < _held.Length && _held[i])
+            {
+                NativeApi.ReleaseScan(_scanCodes[i]);
+                _held[i] = false;
+            }
             if (i < _parent.States.Length)
                 _parent.States[i] = MacroEngine.LaneState.Released;
         }

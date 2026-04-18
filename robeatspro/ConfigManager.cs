@@ -201,7 +201,7 @@ internal sealed class AppSettings
             IsBuiltIn = true,
             MaxJudgmentMs = 100,
             DetectionMode = DetectionMode.BeatmapFile,
-            ManiaKeys = ["D", "F", "J", "K", "S", "D", "F", "SPACE", "J", "K"]
+            ManiaKeys = ["A", "S", "D", "F", "SPACE", "J", "K", "L", "SEMICOLON", "QUOTE"]
         });
     }
 

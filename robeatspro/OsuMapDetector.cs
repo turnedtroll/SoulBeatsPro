@@ -2,7 +2,7 @@ namespace SoulBeatsPro;
 
 internal static class OsuMapDetector
 {
-    private static readonly Dictionary<string, OsuBeatmap> _cache = new();
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, OsuBeatmap> _cache = new();
 
     public static (string artist, string title, string difficulty)? ParseWindowTitle(string windowTitle)
     {

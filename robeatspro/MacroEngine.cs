@@ -28,7 +28,7 @@ internal sealed class MacroEngine
     public enum LaneState { Released, Pressing }
 
     // Public state (read by debug form / UI)
-    public LaneState[] States { get; } = new LaneState[4];
+    public LaneState[] States { get; private set; } = new LaneState[4];
     public int[] MatchCounts => _matchCountsDebug;
     public bool Active { get; set; } = true;
     public int Fps { get; internal set; }
@@ -221,6 +221,12 @@ internal sealed class MacroEngine
             Running = false;
             OnStopped?.Invoke();
             return;
+        }
+
+        // Resize state arrays for variable key count
+        if (beatmap.KeyCount > States.Length)
+        {
+            States = new LaneState[beatmap.KeyCount];
         }
 
         var scanCodes = NativeApi.BuildScanCodes(profile.ManiaKeys, beatmap.KeyCount);
