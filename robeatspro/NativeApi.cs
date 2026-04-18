@@ -148,6 +148,19 @@ internal static class NativeApi
         }
     }
 
+    /// Build scan codes for N keys (osu!mania variable key count).
+    public static ushort[] BuildScanCodes(string[] keyNames, int count)
+    {
+        int n = Math.Min(count, keyNames.Length);
+        var scans = new ushort[n];
+        for (int i = 0; i < n; i++)
+        {
+            int vk = VkFromName(keyNames[i]);
+            scans[i] = vk != 0 ? (ushort)MapVirtualKey((uint)vk, 0) : (ushort)0;
+        }
+        return scans;
+    }
+
     // ── Press / Release ─────────────────────────────────────────
 
     public static void PressScan(ushort scan)
