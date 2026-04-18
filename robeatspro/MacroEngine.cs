@@ -31,7 +31,7 @@ internal sealed class MacroEngine
     public LaneState[] States { get; } = new LaneState[4];
     public int[] MatchCounts => _matchCountsDebug;
     public bool Active { get; set; } = true;
-    public int Fps { get; private set; }
+    public int Fps { get; internal set; }
     public bool Running { get; private set; }
 
     public Point[] TapPixels { get; private set; } = null!;
@@ -53,6 +53,7 @@ internal sealed class MacroEngine
     private double _lastToggle;
     private Thread? _thread;
     private volatile bool _stopRequested;
+    private OsuManiaEngine? _osuEngine;
     private ColorSignature[] _signatures = new ColorSignature[4];
     private double _minPressDurationSec;
     private int _cleanFrames;
@@ -87,11 +88,20 @@ internal sealed class MacroEngine
 
         _stopRequested = false;
         Running = true;
-        _thread = new Thread(Loop) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
-        _thread.Start();
+
+        if (profile.DetectionMode == DetectionMode.BeatmapFile)
+        {
+            _thread = new Thread(OsuManiaLoop) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
+            _thread.Start();
+        }
+        else
+        {
+            _thread = new Thread(Loop) { IsBackground = true, Priority = ThreadPriority.AboveNormal };
+            _thread.Start();
+        }
     }
 
-    public void Stop() { _stopRequested = true; }
+    public void Stop() { _stopRequested = true; _osuEngine?.Stop(); }
 
     private void Loop()
     {
@@ -184,6 +194,42 @@ internal sealed class MacroEngine
         }
 
         ReleaseAllKeys();
+        Running = false;
+        OnStopped?.Invoke();
+    }
+
+    private void OsuManiaLoop()
+    {
+        var profile = ConfigManager.Instance.ActiveProfile;
+        string songsPath = string.IsNullOrEmpty(profile.OsuSongsPath)
+            ? OsuMapDetector.DefaultSongsPath
+            : profile.OsuSongsPath;
+
+        var (beatmap, status) = OsuMapDetector.Detect(songsPath);
+        if (beatmap == null)
+        {
+            Log.Warn($"[OsuMania] Detection failed: {status}");
+            Running = false;
+            OnStopped?.Invoke();
+            return;
+        }
+
+        // Validate key count
+        if (beatmap.KeyCount > profile.ManiaKeys.Length)
+        {
+            Log.Warn($"[OsuMania] Beatmap is {beatmap.KeyCount}K but only {profile.ManiaKeys.Length} keys configured");
+            Running = false;
+            OnStopped?.Invoke();
+            return;
+        }
+
+        var scanCodes = NativeApi.BuildScanCodes(profile.ManiaKeys, beatmap.KeyCount);
+
+        _osuEngine = new OsuManiaEngine(this, beatmap, scanCodes);
+        _osuEngine.DetectionStatus = status;
+        _osuEngine.Run();
+
+        _osuEngine = null;
         Running = false;
         OnStopped?.Invoke();
     }

@@ -182,7 +182,7 @@ internal sealed class OsuManiaEngine
             frameCount++;
             if (now - fpsTimer >= 1.0)
             {
-                // _parent.Fps wiring deferred to Task 10 (Fps has private set)
+                _parent.Fps = frameCount;
                 frameCount = 0;
                 fpsTimer = now;
             }
