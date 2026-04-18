@@ -27,8 +27,9 @@ public class MigrationTests
         }
         """;
         var s = LoadAndMigrate(json);
-        Assert.Single(s.Profiles);
+        Assert.Equal(2, s.Profiles.Count); // FF + osu!mania (auto-added)
         Assert.Equal("Funky Friday", s.Profiles[0].Name);
+        Assert.Equal("osu!mania", s.Profiles[1].Name);
     }
 
     [Fact]
@@ -57,7 +58,7 @@ public class MigrationTests
         }
         """;
         var s = LoadAndMigrate(json);
-        Assert.Equal(2, s.Profiles.Count);
+        Assert.Equal(3, s.Profiles.Count); // FF + RoBeats + osu!mania (auto-added)
         var ff = s.Profiles.Find(p => p.Name == "Funky Friday")!;
         var rb = s.Profiles.Find(p => p.Name == "RoBeats")!;
         Assert.True(ff.IsBuiltIn);

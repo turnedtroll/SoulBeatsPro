@@ -188,6 +188,20 @@ internal sealed class AppSettings
             changed = true;
         }
 
+        // Ensure osu!mania profile exists (added in v2.1.7)
+        if (!Profiles.Any(p => p.Name == "osu!mania"))
+        {
+            Profiles.Add(new Profile
+            {
+                Name = "osu!mania",
+                IsBuiltIn = true,
+                MaxJudgmentMs = 100,
+                DetectionMode = DetectionMode.BeatmapFile,
+                ManiaKeys = ["A", "S", "D", "F", "SPACE", "J", "K", "L", "SEMICOLON", "QUOTE"]
+            });
+            changed = true;
+        }
+
         return changed;
     }
 
