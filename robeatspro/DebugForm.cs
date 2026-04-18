@@ -94,12 +94,13 @@ internal sealed class DebugForm : Form
             int shD = Math.Max(1, (int)(SampleHalf * Scale));
             var laneKeys = ConfigManager.Instance.Keybinds.LaneKeys;
             var pending = _engine.PendingScheduled;
+            int laneCount = Math.Min(_engine.States.Length, _engine.TapPixels?.Length ?? 4);
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < laneCount; i++)
             {
-                var col = MacroEngine.LaneColors[i];
+                var col = i < MacroEngine.LaneColors.Length ? MacroEngine.LaneColors[i] : Color.Gray;
                 var state = _engine.States[i];
-                string keyDisp = NativeApi.DisplayName(laneKeys[i]);
+                string keyDisp = i < laneKeys.Length ? NativeApi.DisplayName(laneKeys[i]) : $"{i + 1}";
 
                 // Tap point
                 int txD = PanelWidth + (int)((_engine.TapPixels[i].X - _monitorBounds.Left) * Scale);
@@ -110,7 +111,7 @@ internal sealed class DebugForm : Form
                 Color tapCol; int tapThick;
                 if (state == MacroEngine.LaneState.Pressing)
                     { tapCol = Color.LimeGreen; tapThick = 3; }
-                else if (_engine.MatchCounts[i] >= 3)
+                else if (i < _engine.MatchCounts.Length && _engine.MatchCounts[i] >= 3)
                     { tapCol = Color.White; tapThick = 2; }
                 else
                     { tapCol = col; tapThick = 1; }
@@ -129,7 +130,7 @@ internal sealed class DebugForm : Form
                 if (state != MacroEngine.LaneState.Released)
                     g.DrawString(state.ToString().ToUpper(), lblFont,
                         new SolidBrush(tapCol), txD - BoxSize, tyD + BoxSize + 2);
-                else if (pending[i])
+                else if (i < pending.Length && pending[i])
                     g.DrawString("DELAYED", lblFont,
                         new SolidBrush(Color.FromArgb(255, 200, 80)), txD - BoxSize, tyD + BoxSize + 2);
             }
@@ -157,16 +158,18 @@ internal sealed class DebugForm : Form
                 new SolidBrush(Color.FromArgb(255, 220, 80)), 6, row);
             row += 15;
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < laneCount; i++)
             {
                 var s = _engine.States[i];
                 string sAbb = s == MacroEngine.LaneState.Pressing ? "PRESS" : "RELES";
                 var sc = s == MacroEngine.LaneState.Pressing ? Color.LimeGreen : Color.Gray;
-                string sched = pending[i] ? "delayed" : "";
-                string keyDisp = NativeApi.DisplayName(laneKeys[i]);
+                int matchCount = i < _engine.MatchCounts.Length ? _engine.MatchCounts[i] : 0;
+                bool isPending = i < pending.Length && pending[i];
+                string sched = isPending ? "delayed" : "";
+                string keyDisp = i < laneKeys.Length ? NativeApi.DisplayName(laneKeys[i]) : $"{i + 1}";
 
                 g.DrawString(
-                    $"  {keyDisp,-3} {sAbb}    {_engine.MatchCounts[i],3}  {sched}",
+                    $"  {keyDisp,-3} {sAbb}    {matchCount,3}  {sched}",
                     panelFont, new SolidBrush(sc), 6, row);
                 row += 15;
             }

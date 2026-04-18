@@ -10,7 +10,7 @@ internal sealed class MainTab : UserControl
     private readonly Label _statusLabel;
     private readonly Label _fpsLabel;
     private readonly Label _fpsWarnLabel;
-    private readonly Label[] _laneLabels = new Label[4];
+    private Label[] _laneLabels = new Label[4];
     private readonly GroupBox _laneGroup;
     private readonly System.Windows.Forms.Timer _timer;
     private readonly System.Windows.Forms.Timer _fpsTimer;
@@ -131,18 +131,7 @@ internal sealed class MainTab : UserControl
         Controls.Add(_laneGroup);
 
         int laneSpacing = 16;
-        for (int i = 0; i < 4; i++)
-        {
-            _laneLabels[i] = new Label
-            {
-                Text = $"{MacroEngine.LaneNames[i]}: IDLE",
-                Font = font,
-                AutoSize = true,
-                Location = new Point(12, 18 + i * laneSpacing),
-                TextAlign = ContentAlignment.MiddleLeft
-            };
-            _laneGroup.Controls.Add(_laneLabels[i]);
-        }
+        RebuildLaneLabels(font, laneSpacing);
         y += 95;
 
         // ── Screenshot button ──────────────────────────────────────
@@ -256,6 +245,33 @@ internal sealed class MainTab : UserControl
         _fpsTimer.Start();
     }
 
+    // ── Lane label helpers ────────────────────────────────────────
+
+    private void RebuildLaneLabels(Font font, int spacing)
+    {
+        _laneGroup.Controls.Clear();
+        int count = 4;
+        var profile = ConfigManager.Instance.ActiveProfile;
+        if (profile.DetectionMode == DetectionMode.BeatmapFile)
+            count = Math.Min(profile.ManiaKeys.Length, 10);
+
+        _laneLabels = new Label[count];
+        for (int i = 0; i < count; i++)
+        {
+            string name = i < MacroEngine.LaneNames.Length ? MacroEngine.LaneNames[i] : $"{i + 1}";
+            _laneLabels[i] = new Label
+            {
+                Text = $"{name}: IDLE",
+                Font = font,
+                AutoSize = true,
+                Location = new Point(12, 18 + i * spacing),
+                TextAlign = ContentAlignment.MiddleLeft
+            };
+            _laneGroup.Controls.Add(_laneLabels[i]);
+        }
+        _laneGroup.Size = new Size(280, Math.Max(85, 22 + count * spacing));
+    }
+
     // ── Remote control methods ────────────────────────────────────
 
     public void RemoteStart() => RunBtn_Click(null, EventArgs.Empty);
@@ -331,8 +347,11 @@ internal sealed class MainTab : UserControl
         _stopBtn.Enabled = false;
         _statusLabel.Text = "Status: IDLE";
         _statusLabel.ForeColor = ConfigManager.Instance.Theme.GetTextColor();
-        for (int i = 0; i < 4; i++)
-            _laneLabels[i].Text = $"{MacroEngine.LaneNames[i]}: IDLE";
+        for (int i = 0; i < _laneLabels.Length; i++)
+        {
+            string name = i < MacroEngine.LaneNames.Length ? MacroEngine.LaneNames[i] : $"{i + 1}";
+            _laneLabels[i].Text = $"{name}: IDLE";
+        }
     }
 
     // ── Timer tick ─────────────────────────────────────────────────
@@ -354,12 +373,21 @@ internal sealed class MainTab : UserControl
         }
 
         // Lane states
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < _laneLabels.Length; i++)
         {
-            var s = _engine.States[i];
-            _laneLabels[i].Text = $"{MacroEngine.LaneNames[i]}: {s}";
-            _laneLabels[i].ForeColor = s == MacroEngine.LaneState.Pressing
-                ? MacroEngine.LaneColors[i] : ConfigManager.Instance.Theme.GetTextColor();
+            string name = i < MacroEngine.LaneNames.Length ? MacroEngine.LaneNames[i] : $"{i + 1}";
+            if (i < _engine.States.Length)
+            {
+                var s = _engine.States[i];
+                _laneLabels[i].Text = $"{name}: {s}";
+                _laneLabels[i].ForeColor = s == MacroEngine.LaneState.Pressing
+                    ? (i < MacroEngine.LaneColors.Length ? MacroEngine.LaneColors[i] : Color.LimeGreen)
+                    : ConfigManager.Instance.Theme.GetTextColor();
+            }
+            else
+            {
+                _laneLabels[i].Text = $"{name}: IDLE";
+            }
         }
 
         // Debug toggle hotkey

@@ -131,6 +131,55 @@ internal sealed class KeybindsTab : UserControl
 
         Controls.Add(ctrlGroup);
 
+        // ── Mania Keys GroupBox (only for BeatmapFile profiles) ──
+        var activeProfile = ConfigManager.Instance.ActiveProfile;
+        int nextY = 304; // default position for non-mania
+
+        if (activeProfile.DetectionMode == DetectionMode.BeatmapFile)
+        {
+            var maniaGroup = new GroupBox
+            {
+                Text = "osu!mania Keys (key count auto-detected from beatmap)",
+                Font = RetroFont,
+                Location = new Point(12, 304),
+                Size = new Size(320, 310),
+                FlatStyle = FlatStyle.Standard,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+            };
+
+            var maniaKeys = activeProfile.ManiaKeys;
+
+            for (int i = 0; i < maniaKeys.Length && i < 10; i++)
+            {
+                int idx = i;
+                var lbl = new Label
+                {
+                    Text = $"Key {i + 1}:",
+                    Font = RetroFont,
+                    AutoSize = true,
+                    Location = new Point(14, 22 + i * 28)
+                };
+                maniaGroup.Controls.Add(lbl);
+
+                var btn = new Button
+                {
+                    Text = NativeApi.DisplayName(maniaKeys[i]),
+                    Font = RetroFont,
+                    FlatStyle = FlatStyle.Standard,
+                    Size = new Size(80, 23),
+                    Location = new Point(220, 18 + i * 28),
+                    Tag = $"mania{idx}",
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right
+                };
+                btn.Click += KeyButton_Click;
+                maniaGroup.Controls.Add(btn);
+            }
+
+            Controls.Add(maniaGroup);
+
+            nextY = 620;
+        }
+
         // ── Hint label ──────────────────────────────────────────
         var hint = new Label
         {
@@ -138,7 +187,7 @@ internal sealed class KeybindsTab : UserControl
             Font = RetroFont,
             ForeColor = Color.FromArgb(160, 160, 170),
             AutoSize = true,
-            Location = new Point(12, 304)
+            Location = new Point(12, nextY)
         };
         Controls.Add(hint);
 
@@ -149,7 +198,7 @@ internal sealed class KeybindsTab : UserControl
             Font = RetroFont,
             FlatStyle = FlatStyle.Standard,
             Size = new Size(130, 26),
-            Location = new Point(12, 328)
+            Location = new Point(12, nextY + 24)
         };
         resetBtn.Click += ResetButton_Click;
         Controls.Add(resetBtn);
@@ -230,6 +279,14 @@ internal sealed class KeybindsTab : UserControl
             kb.SetLane(laneIdx, keyName);
             isLane = true;
         }
+        else if (target.StartsWith("mania") && int.TryParse(target.AsSpan(5), out int maniaIdx))
+        {
+            var profile = ConfigManager.Instance.ActiveProfile;
+            if (maniaIdx >= 0 && maniaIdx < profile.ManiaKeys.Length)
+            {
+                profile.ManiaKeys[maniaIdx] = keyName;
+            }
+        }
         else
         {
             switch (target)
@@ -271,18 +328,27 @@ internal sealed class KeybindsTab : UserControl
         if (target == null) return;
         var kb = ConfigManager.Instance.Keybinds;
 
-        string key = target switch
+        string key;
+        if (target.StartsWith("mania") && int.TryParse(target.AsSpan(5), out int mi))
         {
-            "lane0" => kb.Lane1,
-            "lane1" => kb.Lane2,
-            "lane2" => kb.Lane3,
-            "lane3" => kb.Lane4,
-            "pause" => kb.Pause,
-            "debug" => kb.Debug,
-            "screenshot" => kb.Screenshot,
-            "quit" => kb.Quit,
-            _ => ""
-        };
+            var maniaKeys = ConfigManager.Instance.ActiveProfile.ManiaKeys;
+            key = mi < maniaKeys.Length ? maniaKeys[mi] : "";
+        }
+        else
+        {
+            key = target switch
+            {
+                "lane0" => kb.Lane1,
+                "lane1" => kb.Lane2,
+                "lane2" => kb.Lane3,
+                "lane3" => kb.Lane4,
+                "pause" => kb.Pause,
+                "debug" => kb.Debug,
+                "screenshot" => kb.Screenshot,
+                "quit" => kb.Quit,
+                _ => ""
+            };
+        }
         btn.Text = NativeApi.DisplayName(key);
     }
 
