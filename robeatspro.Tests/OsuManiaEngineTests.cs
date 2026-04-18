@@ -72,6 +72,27 @@ public class OsuManiaEngineTests
     }
 
     [Fact]
+    public void same_time_release_before_press_on_same_column()
+    {
+        // Hold on col 0 ends at 2000, tap on col 0 starts at 2000
+        var notes = new List<OsuNote>
+        {
+            new(column: 0, timeMs: 1000, endTimeMs: 2000, isHold: true),
+            new(column: 0, timeMs: 2000, endTimeMs: 0, isHold: false),
+        };
+
+        var events = OsuManiaEngine.BuildSchedule(notes, minPressDurationMs: 30);
+
+        // Find the two events at t=2000
+        var at2000 = events.Where(e => e.TimeMs == 2000).ToList();
+        Assert.Equal(2, at2000.Count);
+
+        // Release must come before Press at the same time
+        Assert.Equal(ScheduledEventKind.Release, at2000[0].Kind);
+        Assert.Equal(ScheduledEventKind.Press, at2000[1].Kind);
+    }
+
+    [Fact]
     public void skip_first_note_returns_schedule_without_first_note_events()
     {
         var notes = new List<OsuNote>

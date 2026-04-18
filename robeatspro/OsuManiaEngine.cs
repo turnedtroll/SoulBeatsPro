@@ -70,7 +70,8 @@ internal sealed class OsuManiaEngine
         {
             int cmp = a.TimeMs.CompareTo(b.TimeMs);
             if (cmp != 0) return cmp;
-            return a.Kind.CompareTo(b.Kind);
+            // Release (1) before Press (0) at same time — lets hold→tap on same column work
+            return b.Kind.CompareTo(a.Kind);
         });
 
         return events;
@@ -192,6 +193,7 @@ internal sealed class OsuManiaEngine
         int eventIdx = 0;
         int frameCount = 0;
         double fpsTimer = sw.Elapsed.TotalSeconds;
+        double pauseStartTime = 0;
 
         while (!_stopRequested && eventIdx < schedule.Count)
         {
@@ -209,7 +211,17 @@ internal sealed class OsuManiaEngine
             {
                 _parent.Active = !_parent.Active;
                 lastToggle = now;
-                if (!_parent.Active) ReleaseAll();
+                if (!_parent.Active)
+                {
+                    ReleaseAll();
+                    pauseStartTime = now;
+                }
+                else if (pauseStartTime > 0)
+                {
+                    // Shift anchor forward by pause duration so we skip past notes
+                    anchorWallTime += now - pauseStartTime;
+                    pauseStartTime = 0;
+                }
             }
             if (!_parent.Active) { Thread.Sleep(10); continue; }
 

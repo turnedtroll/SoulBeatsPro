@@ -94,7 +94,9 @@ internal sealed class DebugForm : Form
             int shD = Math.Max(1, (int)(SampleHalf * Scale));
             var laneKeys = ConfigManager.Instance.Keybinds.LaneKeys;
             var pending = _engine.PendingScheduled;
-            int laneCount = Math.Min(_engine.States.Length, _engine.TapPixels?.Length ?? 4);
+            var tapPts = _engine.TapPixels;
+            int tapCount = tapPts?.Length ?? 0;
+            int laneCount = Math.Min(_engine.States.Length, tapCount > 0 ? tapCount : 4);
 
             for (int i = 0; i < laneCount; i++)
             {
@@ -102,9 +104,10 @@ internal sealed class DebugForm : Form
                 var state = _engine.States[i];
                 string keyDisp = i < laneKeys.Length ? NativeApi.DisplayName(laneKeys[i]) : $"{i + 1}";
 
-                // Tap point
-                int txD = PanelWidth + (int)((_engine.TapPixels[i].X - _monitorBounds.Left) * Scale);
-                int tyD = (int)((_engine.TapPixels[i].Y - _monitorBounds.Top) * Scale);
+                // Tap point — skip overlay if no pixel coordinates for this lane
+                if (tapPts == null || i >= tapPts.Length) continue;
+                int txD = PanelWidth + (int)((tapPts[i].X - _monitorBounds.Left) * Scale);
+                int tyD = (int)((tapPts[i].Y - _monitorBounds.Top) * Scale);
                 txD = Math.Clamp(txD, PanelWidth + BoxSize, PanelWidth + imgW - BoxSize - 1);
                 tyD = Math.Clamp(tyD, BoxSize, totalH - BoxSize - 1);
 

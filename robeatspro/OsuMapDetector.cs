@@ -76,7 +76,21 @@ internal static class OsuMapDetector
         if (!Directory.Exists(songsPath))
             return (null, $"Songs folder not found: {songsPath}");
 
-        foreach (var songDir in Directory.GetDirectories(songsPath))
+        // Two passes: first try folders whose name matches artist/title, then everything else
+        var allDirs = Directory.GetDirectories(songsPath);
+        var matchingDirs = new List<string>();
+        var otherDirs = new List<string>();
+        foreach (var d in allDirs)
+        {
+            var dirName = Path.GetFileName(d);
+            if (dirName.Contains(artist, StringComparison.OrdinalIgnoreCase)
+                || dirName.Contains(title, StringComparison.OrdinalIgnoreCase))
+                matchingDirs.Add(d);
+            else
+                otherDirs.Add(d);
+        }
+
+        foreach (var songDir in matchingDirs.Concat(otherDirs))
         {
             foreach (var osuFile in Directory.GetFiles(songDir, "*.osu"))
             {
