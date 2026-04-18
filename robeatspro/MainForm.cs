@@ -7,6 +7,7 @@ internal sealed class MainForm : Form
 
     private readonly TabControl _tabs;
     private readonly MainTab _mainTab;
+    private readonly ThemedTabPage _keybindsPage;
 
     public MainForm()
     {
@@ -47,15 +48,15 @@ internal sealed class MainForm : Form
         {
             Text = $"SoulBeats Pro — {ConfigManager.Instance.GameMode.ActiveProfileName}";
             _mainTab.RestartOnGameSwitch();
+            RebuildKeybindsTab();
         };
         profilesPage.Controls.Add(profilesTab);
         _tabs.TabPages.Add(profilesPage);
 
         // Keybinds tab
-        var keybindsPage = new ThemedTabPage("Keybinds");
-        var keybindsTab = new KeybindsTab { Dock = DockStyle.Fill };
-        keybindsPage.Controls.Add(keybindsTab);
-        _tabs.TabPages.Add(keybindsPage);
+        _keybindsPage = new ThemedTabPage("Keybinds");
+        _keybindsPage.Controls.Add(new KeybindsTab { Dock = DockStyle.Fill });
+        _tabs.TabPages.Add(_keybindsPage);
 
         // Colors tab
         var colorsPage = new ThemedTabPage("Colors");
@@ -179,6 +180,14 @@ internal sealed class MainForm : Form
                     Text = $"SoulBeats Pro — Updating {pct}%...";
             });
         }
+    }
+
+    private void RebuildKeybindsTab()
+    {
+        _keybindsPage.Controls.Clear();
+        var newTab = new KeybindsTab { Dock = DockStyle.Fill };
+        _keybindsPage.Controls.Add(newTab);
+        ThemeHelper.ApplyToChildren(_keybindsPage);
     }
 
     private void ApplyTheme()
