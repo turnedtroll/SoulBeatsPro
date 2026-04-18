@@ -195,6 +195,14 @@ internal sealed class AppSettings
     {
         Profiles.Add(new Profile { Name = "Funky Friday", IsBuiltIn = true, MaxJudgmentMs = 140 });
         Profiles.Add(new Profile { Name = "RoBeats",      IsBuiltIn = true, MaxJudgmentMs = 150 });
+        Profiles.Add(new Profile
+        {
+            Name = "osu!mania",
+            IsBuiltIn = true,
+            MaxJudgmentMs = 100,
+            DetectionMode = DetectionMode.BeatmapFile,
+            ManiaKeys = ["D", "F", "J", "K", "S", "D", "F", "SPACE", "J", "K"]
+        });
     }
 
     private void MigrateTwoProfile(JsonElement el)

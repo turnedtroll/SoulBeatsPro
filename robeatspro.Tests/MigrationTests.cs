@@ -91,8 +91,9 @@ public class MigrationTests
         }
         """;
         var s = LoadAndMigrate(json);
-        Assert.Equal(2, s.Profiles.Count);
+        Assert.Equal(3, s.Profiles.Count);
         Assert.Contains(s.Profiles, p => p.Name == "Funky Friday");
         Assert.Contains(s.Profiles, p => p.Name == "RoBeats");
+        Assert.Contains(s.Profiles, p => p.Name == "osu!mania");
     }
 }
