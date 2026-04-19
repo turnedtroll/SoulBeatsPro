@@ -40,6 +40,22 @@ internal sealed class MacroEngine
     /// <summary>True for any lane whose press is currently delayed by an accuracy preset.</summary>
     public bool[] PendingScheduled => _pendingScheduledDebug;
 
+    /// <summary>
+    /// Human-readable status for osu!mania mode (detection + sync). Empty in pixel-based mode.
+    /// </summary>
+    public string StatusText
+    {
+        get
+        {
+            var e = _osuEngine;
+            if (e == null) return "";
+            var sync = e.SyncStatus;
+            var det = e.DetectionStatus;
+            if (string.IsNullOrEmpty(det)) return sync ?? "";
+            return string.IsNullOrEmpty(sync) ? det : $"{det} — {sync}";
+        }
+    }
+
     // Private state
     private readonly DetectionLane[] _lanes = new DetectionLane[4];
     private readonly double[] _scheduledPressAt = new double[4];
@@ -57,6 +73,10 @@ internal sealed class MacroEngine
     private ColorSignature[] _signatures = new ColorSignature[4];
     private double _minPressDurationSec;
     private int _cleanFrames;
+    private volatile string _lastStopReason = "";
+
+    /// <summary>Last user-facing reason the engine stopped (e.g. osu! window not found).</summary>
+    public string LastStopReason => _lastStopReason;
 
     public event Action? OnStopped;
 
@@ -209,6 +229,7 @@ internal sealed class MacroEngine
         if (beatmap == null)
         {
             Log.Warn($"[OsuMania] Detection failed: {status}");
+            _lastStopReason = status;
             Running = false;
             OnStopped?.Invoke();
             return;
@@ -217,10 +238,30 @@ internal sealed class MacroEngine
         // Validate key count
         if (beatmap.KeyCount > profile.ManiaKeys.Length)
         {
-            Log.Warn($"[OsuMania] Beatmap is {beatmap.KeyCount}K but only {profile.ManiaKeys.Length} keys configured");
+            var msg = $"Beatmap is {beatmap.KeyCount}K but only {profile.ManiaKeys.Length} mania keys configured";
+            Log.Warn($"[OsuMania] {msg}");
+            _lastStopReason = msg;
             Running = false;
             OnStopped?.Invoke();
             return;
+        }
+
+        // Reject keys padded with duplicates (e.g. "BACKSPACE" x6) — would spam unintended keys
+        var keys = profile.ManiaKeys;
+        for (int i = 0; i < beatmap.KeyCount; i++)
+        {
+            for (int j = i + 1; j < beatmap.KeyCount; j++)
+            {
+                if (string.Equals(keys[i], keys[j], StringComparison.OrdinalIgnoreCase))
+                {
+                    var msg = $"Beatmap is {beatmap.KeyCount}K but keys {i + 1} and {j + 1} are both '{keys[i]}' — configure unique keys in Keybinds";
+                    Log.Warn($"[OsuMania] {msg}");
+                    _lastStopReason = msg;
+                    Running = false;
+                    OnStopped?.Invoke();
+                    return;
+                }
+            }
         }
 
         // Resize state arrays for variable key count
@@ -234,6 +275,11 @@ internal sealed class MacroEngine
         _osuEngine = new OsuManiaEngine(this, beatmap, scanCodes);
         _osuEngine.DetectionStatus = status;
         _osuEngine.Run();
+
+        // If the engine stopped before sync (e.g. missing calibration), preserve that message
+        var syncMsg = _osuEngine.SyncStatus;
+        if (!string.IsNullOrEmpty(syncMsg) && syncMsg != "Synced — playing")
+            _lastStopReason = syncMsg;
 
         _osuEngine = null;
         Running = false;

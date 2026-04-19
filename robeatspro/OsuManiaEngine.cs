@@ -25,8 +25,9 @@ internal sealed class OsuManiaEngine
     private readonly bool[] _held;
     private volatile bool _stopRequested;
     private readonly Random _rng = new();
+    private volatile string _syncStatus = "Not synced";
 
-    public string SyncStatus { get; private set; } = "Not synced";
+    public string SyncStatus => _syncStatus;
     public string DetectionStatus { get; set; } = "";
 
     public OsuManiaEngine(MacroEngine parent, OsuBeatmap beatmap, ushort[] scanCodes)
@@ -91,7 +92,7 @@ internal sealed class OsuManiaEngine
         var schedule = BuildSchedule(_beatmap.Notes, tuning.MinPressDurationMs, skipFirstNote: true);
         if (schedule.Count == 0 && _beatmap.Notes.Count <= 1)
         {
-            SyncStatus = "Beatmap has no notes to play";
+            _syncStatus = "Beatmap has no notes to play";
             return;
         }
 
@@ -104,7 +105,7 @@ internal sealed class OsuManiaEngine
         }
 
         // === SYNC PHASE ===
-        SyncStatus = "Waiting for first note...";
+        _syncStatus = "Waiting for first note...";
 
         var firstNote = _beatmap.Notes[0];
         int syncColumn = firstNote.Column;
@@ -116,12 +117,18 @@ internal sealed class OsuManiaEngine
 
         if (tapPixels.Length == 0 || syncColumn >= tapPixels.Length)
         {
-            SyncStatus = "No tap pixels configured — calibrate first";
+            _syncStatus = $"No tap pixel for sync column {syncColumn + 1} — calibrate first";
+            return;
+        }
+
+        var syncSig = syncColumn < signatures.Length ? signatures[syncColumn] : new ColorSignature();
+        if (syncSig.Entries.Count == 0)
+        {
+            _syncStatus = $"No color signature for sync column {syncColumn + 1} — calibrate Colors tab";
             return;
         }
 
         var syncPoint = tapPixels[Math.Min(syncColumn, tapPixels.Length - 1)];
-        var syncSig = syncColumn < signatures.Length ? signatures[syncColumn] : new ColorSignature();
 
         int capSize = sampleHalf * 2 + 4;
         int capLeft = syncPoint.X - sampleHalf - 1;
@@ -137,9 +144,20 @@ internal sealed class OsuManiaEngine
         double anchorWallTime = 0;
         int anchorBeatmapMs = firstNote.TimeMs;
 
+        int syncFrameCount = 0;
+        double syncFpsTimer = sw.Elapsed.TotalSeconds;
+
         while (!_stopRequested && !synced)
         {
             double now = sw.Elapsed.TotalSeconds;
+
+            syncFrameCount++;
+            if (now - syncFpsTimer >= 1.0)
+            {
+                _parent.Fps = syncFrameCount;
+                syncFrameCount = 0;
+                syncFpsTimer = now;
+            }
 
             if (NativeApi.IsKeyDown(ConfigManager.Instance.Keybinds.Pause) && now - lastToggle > toggleDelay)
             {
@@ -152,6 +170,7 @@ internal sealed class OsuManiaEngine
             try { capture.Grab(); } catch { Thread.Sleep(1); continue; }
 
             int matchCount = capture.CountSignatureMatches(relX, relY, sampleHalf, syncSig);
+            _syncStatus = $"Waiting for first note at col {syncColumn + 1} ({matchCount}/{minPixels} px)";
             if (matchCount >= minPixels)
             {
                 if (syncColumn < _scanCodes.Length)
@@ -164,7 +183,7 @@ internal sealed class OsuManiaEngine
                     _parent.States[syncColumn] = MacroEngine.LaneState.Pressing;
                 anchorWallTime = sw.Elapsed.TotalSeconds;
                 synced = true;
-                SyncStatus = "Synced";
+                _syncStatus = "Synced — playing";
 
                 double firstReleaseDelaySec;
                 if (firstNote.IsHold && firstNote.EndTimeMs > firstNote.TimeMs)

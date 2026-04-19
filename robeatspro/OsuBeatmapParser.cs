@@ -83,8 +83,12 @@ internal static class OsuBeatmapParser
 
     private static void ParseDifficulty(string line, OsuBeatmap b)
     {
-        if (TryGetValue(line, "CircleSize", out var val) && int.TryParse(val, out int cs))
-            b.KeyCount = cs;
+        if (TryGetValue(line, "CircleSize", out var val)
+            && double.TryParse(val, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double cs))
+        {
+            b.KeyCount = (int)Math.Round(cs);
+        }
     }
 
     private static void ParseHitObject(string line, OsuBeatmap b)

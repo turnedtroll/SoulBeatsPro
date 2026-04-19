@@ -345,8 +345,19 @@ internal sealed class MainTab : UserControl
         _debugForm = null;
         _runBtn.Enabled = true;
         _stopBtn.Enabled = false;
-        _statusLabel.Text = "Status: IDLE";
-        _statusLabel.ForeColor = ConfigManager.Instance.Theme.GetTextColor();
+
+        var reason = _engine?.LastStopReason ?? "";
+        if (!string.IsNullOrEmpty(reason))
+        {
+            _statusLabel.Text = $"Status: STOPPED — {reason}";
+            _statusLabel.ForeColor = Color.FromArgb(230, 140, 80);
+        }
+        else
+        {
+            _statusLabel.Text = "Status: IDLE";
+            _statusLabel.ForeColor = ConfigManager.Instance.Theme.GetTextColor();
+        }
+
         for (int i = 0; i < _laneLabels.Length; i++)
         {
             string name = i < MacroEngine.LaneNames.Length ? MacroEngine.LaneNames[i] : $"{i + 1}";
@@ -361,14 +372,15 @@ internal sealed class MainTab : UserControl
         if (_engine == null || !_engine.Running) return;
 
         // Status
+        string detail = _engine.StatusText;
         if (_engine.Active)
         {
-            _statusLabel.Text = "Status: ACTIVE";
+            _statusLabel.Text = string.IsNullOrEmpty(detail) ? "Status: ACTIVE" : $"Status: ACTIVE — {detail}";
             _statusLabel.ForeColor = Color.Green;
         }
         else
         {
-            _statusLabel.Text = "Status: PAUSED";
+            _statusLabel.Text = string.IsNullOrEmpty(detail) ? "Status: PAUSED" : $"Status: PAUSED — {detail}";
             _statusLabel.ForeColor = Color.FromArgb(200, 60, 60);
         }
 

@@ -12,7 +12,7 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <Version>2.1.7</Version>
+    <Version>2.1.8</Version>
     <RootNamespace>SoulBeatsPro</RootNamespace>
     <AssemblyName>SoulBeatsPro</AssemblyName>
   </PropertyGroup>
