@@ -7,7 +7,13 @@ internal sealed class OsuBeatmap
     public string Version { get; set; } = "";
     public int KeyCount { get; set; }
     public int Mode { get; set; }
+    public double OverallDifficulty { get; set; } = OsuManiaTimingWindows.DefaultOd;
     public List<OsuNote> Notes { get; set; } = new();
+
+    /// <summary>True when the source .osu file was Mode ≠ 3 (e.g. osu!standard) and we
+    /// synthesised mania notes via convert. Column placement is approximate — osu!stable's
+    /// real convert uses pattern-based column assignment we don't fully replicate.</summary>
+    public bool IsConvert { get; set; }
 }
 
 internal readonly struct OsuNote
@@ -25,9 +31,12 @@ internal readonly struct OsuNote
 
 internal static class OsuBeatmapParser
 {
-    public static OsuBeatmap? Parse(string content)
+    /// <summary>Parse an .osu file as mania. If the file is Mode=0 (osu!standard), synthesise
+    /// mania notes via a simple x-position convert using <paramref name="convertKeyCount"/>.</summary>
+    public static OsuBeatmap? Parse(string content, int convertKeyCount = 4)
     {
         var beatmap = new OsuBeatmap();
+        var pending = new List<StandardHitObject>();
         var lines = content.Split('\n');
         string section = "";
 
@@ -47,11 +56,31 @@ internal static class OsuBeatmapParser
                 case "General": ParseGeneral(line, beatmap); break;
                 case "Metadata": ParseMetadata(line, beatmap); break;
                 case "Difficulty": ParseDifficulty(line, beatmap); break;
-                case "HitObjects": ParseHitObject(line, beatmap); break;
+                case "HitObjects":
+                    if (beatmap.Mode == 3) ParseManiaHitObject(line, beatmap);
+                    else if (beatmap.Mode == 0) ParseStandardHitObject(line, pending);
+                    break;
             }
         }
 
-        if (beatmap.Mode != 3) return null;
+        if (beatmap.Mode == 0)
+        {
+            // Convert osu!standard to mania. Circles + sliders become taps at a column
+            // chosen from the note's x position. Slider hold duration is skipped (MVP).
+            int kc = Math.Clamp(convertKeyCount, 1, 10);
+            beatmap.KeyCount = kc;
+            beatmap.IsConvert = true;
+            foreach (var h in pending)
+            {
+                int col = Math.Clamp(h.X * kc / 512, 0, kc - 1);
+                beatmap.Notes.Add(new OsuNote(col, h.TimeMs, 0, false));
+            }
+        }
+        else if (beatmap.Mode != 3)
+        {
+            // Taiko / catch — no sensible mania conversion. Reject.
+            return null;
+        }
 
         beatmap.Notes.Sort((a, b) =>
         {
@@ -62,10 +91,10 @@ internal static class OsuBeatmapParser
         return beatmap;
     }
 
-    public static OsuBeatmap? ParseFile(string path)
+    public static OsuBeatmap? ParseFile(string path, int convertKeyCount = 4)
     {
         if (!File.Exists(path)) return null;
-        return Parse(File.ReadAllText(path));
+        return Parse(File.ReadAllText(path), convertKeyCount);
     }
 
     private static void ParseGeneral(string line, OsuBeatmap b)
@@ -83,15 +112,21 @@ internal static class OsuBeatmapParser
 
     private static void ParseDifficulty(string line, OsuBeatmap b)
     {
-        if (TryGetValue(line, "CircleSize", out var val)
-            && double.TryParse(val, System.Globalization.NumberStyles.Float,
+        if (TryGetValue(line, "CircleSize", out var csVal)
+            && double.TryParse(csVal, System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out double cs))
         {
             b.KeyCount = (int)Math.Round(cs);
         }
+        else if (TryGetValue(line, "OverallDifficulty", out var odVal)
+            && double.TryParse(odVal, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out double od))
+        {
+            b.OverallDifficulty = od;
+        }
     }
 
-    private static void ParseHitObject(string line, OsuBeatmap b)
+    private static void ParseManiaHitObject(string line, OsuBeatmap b)
     {
         var parts = line.Split(',');
         if (parts.Length < 5) return;
@@ -111,6 +146,26 @@ internal static class OsuBeatmapParser
         }
 
         b.Notes.Add(new OsuNote(column, time, endTime, isHold));
+    }
+
+    private readonly struct StandardHitObject
+    {
+        public int X { get; }
+        public int TimeMs { get; }
+        public int Type { get; }
+        public StandardHitObject(int x, int timeMs, int type) { X = x; TimeMs = timeMs; Type = type; }
+    }
+
+    private static void ParseStandardHitObject(string line, List<StandardHitObject> pending)
+    {
+        var parts = line.Split(',');
+        if (parts.Length < 5) return;
+        if (!int.TryParse(parts[0], out int x)) return;
+        if (!int.TryParse(parts[2], out int time)) return;
+        if (!int.TryParse(parts[3], out int type)) return;
+        // type & 1 = circle, & 2 = slider, & 8 = spinner. Skip spinners (no column sense).
+        if ((type & 8) != 0) return;
+        pending.Add(new StandardHitObject(x, time, type));
     }
 
     private static bool TryGetValue(string line, string key, out string value)

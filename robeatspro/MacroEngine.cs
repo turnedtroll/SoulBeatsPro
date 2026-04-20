@@ -47,6 +47,11 @@ internal sealed class MacroEngine
     {
         get
         {
+            // While polling for the beatmap to be selected, surface that status directly —
+            // the OsuManiaEngine hasn't been constructed yet.
+            var waiting = _detectionWaitStatus;
+            if (!string.IsNullOrEmpty(waiting)) return waiting;
+
             var e = _osuEngine;
             if (e == null) return "";
             var sync = e.SyncStatus;
@@ -74,6 +79,7 @@ internal sealed class MacroEngine
     private double _minPressDurationSec;
     private int _cleanFrames;
     private volatile string _lastStopReason = "";
+    private volatile string _detectionWaitStatus = "";
 
     /// <summary>Last user-facing reason the engine stopped (e.g. osu! window not found).</summary>
     public string LastStopReason => _lastStopReason;
@@ -225,11 +231,31 @@ internal sealed class MacroEngine
             ? OsuMapDetector.DefaultSongsPath
             : profile.OsuSongsPath;
 
-        var (beatmap, status) = OsuMapDetector.Detect(songsPath);
-        if (beatmap == null)
+        // Poll for a selected song. Detect() returns null while osu! is closed or no
+        // map is selected; we just show a friendly status and try again every 500ms.
+        _detectionWaitStatus = "Waiting for song to be selected...";
+        OsuBeatmap? beatmap = null;
+        string status = "";
+        while (!_stopRequested && beatmap == null)
         {
-            Log.Warn($"[OsuMania] Detection failed: {status}");
-            _lastStopReason = status;
+            var result = OsuMapDetector.Detect(songsPath, profile.ManiaConvertKeyCount);
+            beatmap = result.beatmap;
+            status = result.status;
+
+            if (beatmap == null)
+            {
+                // "osu! window not found..." or "No beatmap selected..." — show it live.
+                _detectionWaitStatus = $"Waiting for song to be selected — {status}";
+                // Responsive to Stop: sleep in small increments.
+                for (int i = 0; i < 10 && !_stopRequested; i++)
+                    Thread.Sleep(50);
+            }
+        }
+
+        _detectionWaitStatus = "";
+
+        if (_stopRequested)
+        {
             Running = false;
             OnStopped?.Invoke();
             return;

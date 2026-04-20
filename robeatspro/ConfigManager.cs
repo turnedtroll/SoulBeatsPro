@@ -48,6 +48,14 @@ internal sealed class TuningSettings
     [JsonPropertyName("cleanFrames")] public int CleanFrames { get; set; } = 3;
     [JsonPropertyName("minPressDurationMs")] public double MinPressDurationMs { get; set; } = 20.0;
 
+    /// <summary>
+    /// Shifts press timing in osu!mania (beatmap-file) mode. Positive = press earlier
+    /// in wall time (compensates for capture + input latency). Negative = press later
+    /// (compensates for an over-high tap-pixel calibration that detects color before
+    /// the note actually reaches the receptor). UI range is ±50 ms.
+    /// </summary>
+    [JsonPropertyName("inputOffsetMs")] public double InputOffsetMs { get; set; } = 0.0;
+
     public void Reset()
     {
         var d = new TuningSettings();
@@ -56,6 +64,7 @@ internal sealed class TuningSettings
         ToggleDelay = d.ToggleDelay; HoldArmGrace = d.HoldArmGrace;
         HoldReleaseGrace = d.HoldReleaseGrace;
         CleanFrames = d.CleanFrames; MinPressDurationMs = d.MinPressDurationMs;
+        InputOffsetMs = d.InputOffsetMs;
     }
 }
 
@@ -200,6 +209,50 @@ internal sealed class AppSettings
                 ManiaKeys = ["A", "S", "D", "F", "SPACE", "J", "K", "L", "SEMICOLON", "QUOTE"]
             });
             changed = true;
+        }
+
+        // Ensure every beatmap-file profile has 10 unique mania key slots so users
+        // can bind keys for 5K/6K/7K/etc. without hand-editing JSON. Preserves
+        // user-configured slots in order; pads missing slots from a pool of keys that
+        // aren't already used; repairs duplicates introduced by an earlier buggy
+        // migration (v2.1.7 positional pad) so the engine's "keys N and M are both X"
+        // validator doesn't reject 6K+ maps.
+        string[] pool = ["A", "S", "D", "F", "SPACE", "J", "K", "L", "SEMICOLON", "QUOTE",
+                         "G", "H", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"];
+        foreach (var p in Profiles)
+        {
+            if (p.DetectionMode != DetectionMode.BeatmapFile) continue;
+
+            var original = p.ManiaKeys ?? Array.Empty<string>();
+            var padded = new string[10];
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int poolIdx = 0;
+
+            for (int i = 0; i < 10; i++)
+            {
+                string cur = i < original.Length ? (original[i] ?? "") : "";
+                if (!string.IsNullOrWhiteSpace(cur) && !used.Contains(cur))
+                {
+                    padded[i] = cur;
+                    used.Add(cur);
+                    continue;
+                }
+                // Slot empty or duplicates a prior slot — pick an unused pool entry.
+                string? choice = null;
+                while (poolIdx < pool.Length)
+                {
+                    if (!used.Contains(pool[poolIdx])) { choice = pool[poolIdx++]; break; }
+                    poolIdx++;
+                }
+                padded[i] = choice ?? $"UNMAPPED{i + 1}";
+                if (choice != null) used.Add(choice);
+            }
+
+            if (original.Length != 10 || !original.SequenceEqual(padded, StringComparer.OrdinalIgnoreCase))
+            {
+                p.ManiaKeys = padded;
+                changed = true;
+            }
         }
 
         return changed;

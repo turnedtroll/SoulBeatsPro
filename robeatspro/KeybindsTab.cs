@@ -4,7 +4,9 @@ namespace SoulBeatsPro;
 
 /// <summary>
 /// UserControl for configuring lane and control keybinds.
-/// Win95/98 retro style with GroupBox sections and low-level keyboard hook capture.
+/// Sections stack vertically inside a scrollable FlowLayoutPanel; each section is a
+/// GroupBox with a two-column TableLayoutPanel so labels/buttons always line up
+/// regardless of the window size.
 /// </summary>
 internal sealed class KeybindsTab : UserControl
 {
@@ -24,28 +26,32 @@ internal sealed class KeybindsTab : UserControl
     private IntPtr _hookHandle = IntPtr.Zero;
     private NativeApi.LowLevelKeyboardProc? _hookProc;   // prevent GC
 
+    // ── Mania key buttons (populated only on BeatmapFile profiles) ──
+    private Button[]? _maniaButtons;
+
     // ── Style ───────────────────────────────────────────────────
     private static readonly Font RetroFont = new("MS Sans Serif", 8f);
-    private static readonly Color BgColor = ConfigManager.Instance.Theme.GetWindowBg();
-    private LayoutScaler? _scaler;
 
     public KeybindsTab()
     {
         SetStyle(ControlStyles.SupportsTransparentBackColor, true);
         BackColor = Color.Transparent;
         Font = RetroFont;
-        AutoScroll = true;
+
+        // Root scrollable flow panel — stacks sections vertically.
+        var root = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
+            AutoScroll = true,
+            Padding = new Padding(8),
+            BackColor = Color.Transparent
+        };
 
         // ── Lane Keys GroupBox ──────────────────────────────────
-        var laneGroup = new GroupBox
-        {
-            Text = "Lane Keys",
-            Font = RetroFont,
-            Location = new Point(12, 8),
-            Size = new Size(320, 140),
-            FlatStyle = FlatStyle.Standard,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
-        };
+        var laneGroup = BuildSection("Lane Keys");
+        var laneTable = (TableLayoutPanel)laneGroup.Controls[0];
 
         for (int i = 0; i < 4; i++)
         {
@@ -59,149 +65,284 @@ internal sealed class KeybindsTab : UserControl
                 3 => kb.Lane4,
                 _ => ""
             };
-
             string defaultDisplay = NativeApi.DisplayName(_laneDefaults[i]);
-            var lbl = new Label
-            {
-                Text = $"{_laneLabels[i]} ({defaultDisplay}):",
-                Font = RetroFont,
-                AutoSize = true,
-                Location = new Point(14, 24 + i * 28)
-            };
-            laneGroup.Controls.Add(lbl);
-
-            var btn = new Button
-            {
-                Text = NativeApi.DisplayName(currentKey),
-                Font = RetroFont,
-                FlatStyle = FlatStyle.Standard,
-                Size = new Size(80, 23),
-                Location = new Point(220, 20 + i * 28),
-                Tag = $"lane{idx}",
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btn.Click += KeyButton_Click;
-            laneGroup.Controls.Add(btn);
-            _laneButtons[i] = btn;
+            _laneButtons[i] = AddKeyRow(laneTable, $"{_laneLabels[i]} ({defaultDisplay}):", currentKey, $"lane{idx}");
         }
-        Controls.Add(laneGroup);
+        root.Controls.Add(laneGroup);
 
         // ── Control Keys GroupBox ───────────────────────────────
-        var ctrlGroup = new GroupBox
-        {
-            Text = "Control Keys",
-            Font = RetroFont,
-            Location = new Point(12, 156),
-            Size = new Size(320, 140),
-            FlatStyle = FlatStyle.Standard,
-            Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
-        };
-
-        Button MakeControlBtn(string labelText, string currentKey, string tag, int row)
-        {
-            var lbl = new Label
-            {
-                Text = $"{labelText}:",
-                Font = RetroFont,
-                AutoSize = true,
-                Location = new Point(14, 24 + row * 28)
-            };
-            ctrlGroup.Controls.Add(lbl);
-
-            var btn = new Button
-            {
-                Text = NativeApi.DisplayName(currentKey),
-                Font = RetroFont,
-                FlatStyle = FlatStyle.Standard,
-                Size = new Size(80, 23),
-                Location = new Point(220, 20 + row * 28),
-                Tag = tag,
-                Anchor = AnchorStyles.Top | AnchorStyles.Right
-            };
-            btn.Click += KeyButton_Click;
-            ctrlGroup.Controls.Add(btn);
-            return btn;
-        }
+        var ctrlGroup = BuildSection("Control Keys");
+        var ctrlTable = (TableLayoutPanel)ctrlGroup.Controls[0];
 
         var kb2 = ConfigManager.Instance.Keybinds;
-        _pauseBtn = MakeControlBtn(_controlLabels[0], kb2.Pause, "pause", 0);
-        _debugBtn = MakeControlBtn(_controlLabels[1], kb2.Debug, "debug", 1);
-        _screenshotBtn = MakeControlBtn(_controlLabels[2], kb2.Screenshot, "screenshot", 2);
-        _quitBtn = MakeControlBtn(_controlLabels[3], kb2.Quit, "quit", 3);
+        _pauseBtn      = AddKeyRow(ctrlTable, $"{_controlLabels[0]}:", kb2.Pause,      "pause");
+        _debugBtn      = AddKeyRow(ctrlTable, $"{_controlLabels[1]}:", kb2.Debug,      "debug");
+        _screenshotBtn = AddKeyRow(ctrlTable, $"{_controlLabels[2]}:", kb2.Screenshot, "screenshot");
+        _quitBtn       = AddKeyRow(ctrlTable, $"{_controlLabels[3]}:", kb2.Quit,       "quit");
+        root.Controls.Add(ctrlGroup);
 
-        Controls.Add(ctrlGroup);
-
-        // ── Mania Keys GroupBox (only for BeatmapFile profiles) ──
+        // ── osu!mania Keys + Songs Folder (BeatmapFile profiles only) ──
         var activeProfile = ConfigManager.Instance.ActiveProfile;
-        int nextY = 304; // default position for non-mania
-
         if (activeProfile.DetectionMode == DetectionMode.BeatmapFile)
         {
-            var maniaGroup = new GroupBox
-            {
-                Text = "osu!mania Keys (key count auto-detected from beatmap)",
-                Font = RetroFont,
-                Location = new Point(12, 304),
-                Size = new Size(320, 310),
-                FlatStyle = FlatStyle.Standard,
-                Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
-            };
+            var maniaGroup = BuildSection("osu!mania Keys (key count auto-detected from beatmap)");
+            var maniaTable = (TableLayoutPanel)maniaGroup.Controls[0];
 
             var maniaKeys = activeProfile.ManiaKeys;
+            int slots = Math.Min(maniaKeys.Length, 10);
+            _maniaButtons = new Button[slots];
+            for (int i = 0; i < slots; i++)
+                _maniaButtons[i] = AddKeyRow(maniaTable, $"Key {i + 1}:", maniaKeys[i], $"mania{i}");
+            root.Controls.Add(maniaGroup);
 
-            for (int i = 0; i < maniaKeys.Length && i < 10; i++)
-            {
-                int idx = i;
-                var lbl = new Label
-                {
-                    Text = $"Key {i + 1}:",
-                    Font = RetroFont,
-                    AutoSize = true,
-                    Location = new Point(14, 22 + i * 28)
-                };
-                maniaGroup.Controls.Add(lbl);
-
-                var btn = new Button
-                {
-                    Text = NativeApi.DisplayName(maniaKeys[i]),
-                    Font = RetroFont,
-                    FlatStyle = FlatStyle.Standard,
-                    Size = new Size(80, 23),
-                    Location = new Point(220, 18 + i * 28),
-                    Tag = $"mania{idx}",
-                    Anchor = AnchorStyles.Top | AnchorStyles.Right
-                };
-                btn.Click += KeyButton_Click;
-                maniaGroup.Controls.Add(btn);
-            }
-
-            Controls.Add(maniaGroup);
-
-            nextY = 620;
+            root.Controls.Add(BuildSongsFolderGroup(activeProfile));
         }
 
-        // ── Hint label ──────────────────────────────────────────
+        // ── Hint + Reset button ─────────────────────────────────
         var hint = new Label
         {
             Text = "Click a box, then press a new key",
             Font = RetroFont,
             ForeColor = Color.FromArgb(160, 160, 170),
             AutoSize = true,
-            Location = new Point(12, nextY)
+            Margin = new Padding(4, 6, 4, 2)
         };
-        Controls.Add(hint);
+        root.Controls.Add(hint);
 
-        // ── Reset button ────────────────────────────────────────
         var resetBtn = new Button
         {
             Text = "Reset to Defaults",
             Font = RetroFont,
             FlatStyle = FlatStyle.Standard,
-            Size = new Size(130, 26),
-            Location = new Point(12, nextY + 24)
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(8, 4, 8, 4),
+            Margin = new Padding(4, 2, 4, 8)
         };
         resetBtn.Click += ResetButton_Click;
-        Controls.Add(resetBtn);
+        root.Controls.Add(resetBtn);
+
+        Controls.Add(root);
+    }
+
+    // ── Section builders ────────────────────────────────────────
+
+    private static GroupBox BuildSection(string title)
+    {
+        var grp = new GroupBox
+        {
+            Text = title,
+            Font = RetroFont,
+            FlatStyle = FlatStyle.Standard,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(8, 4, 8, 8),
+            Margin = new Padding(4, 4, 4, 8),
+            MinimumSize = new Size(320, 0)
+        };
+        var table = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 2,
+            BackColor = Color.Transparent
+        };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        grp.Controls.Add(table);
+        return grp;
+    }
+
+    private Button AddKeyRow(TableLayoutPanel table, string labelText, string currentKey, string tag)
+    {
+        int row = table.RowCount;
+        table.RowCount = row + 1;
+        table.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var lbl = new Label
+        {
+            Text = labelText,
+            Font = RetroFont,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(2, 6, 12, 4)
+        };
+        table.Controls.Add(lbl, 0, row);
+
+        var btn = new Button
+        {
+            Text = NativeApi.DisplayName(currentKey),
+            Font = RetroFont,
+            FlatStyle = FlatStyle.Standard,
+            Size = new Size(100, 23),
+            Tag = tag,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(2, 2, 2, 2)
+        };
+        btn.Click += KeyButton_Click;
+        table.Controls.Add(btn, 1, row);
+        return btn;
+    }
+
+    private GroupBox BuildSongsFolderGroup(Profile activeProfile)
+    {
+        var grp = new GroupBox
+        {
+            Text = "osu! Songs Folder & Converts",
+            Font = RetroFont,
+            FlatStyle = FlatStyle.Standard,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(8, 4, 8, 8),
+            Margin = new Padding(4, 4, 4, 8),
+            MinimumSize = new Size(320, 0)
+        };
+
+        var stack = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            BackColor = Color.Transparent
+        };
+        stack.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        grp.Controls.Add(stack);
+
+        // Row 0 – label
+        var songsLbl = new Label
+        {
+            Text = "Songs folder (blank = default):",
+            Font = RetroFont,
+            AutoSize = true,
+            Margin = new Padding(2, 4, 2, 2)
+        };
+        stack.Controls.Add(songsLbl, 0, 0);
+
+        // Row 1 – textbox + Browse (inner two-column table)
+        var pathRow = new TableLayoutPanel
+        {
+            ColumnCount = 2,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0),
+            BackColor = Color.Transparent
+        };
+        pathRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+        pathRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var songsBox = new TextBox
+        {
+            Font = RetroFont,
+            Text = activeProfile.OsuSongsPath,
+            Dock = DockStyle.Fill,
+            Margin = new Padding(2, 2, 6, 2)
+        };
+        pathRow.Controls.Add(songsBox, 0, 0);
+
+        var browseBtn = new Button
+        {
+            Text = "Browse...",
+            Font = RetroFont,
+            FlatStyle = FlatStyle.Standard,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(6, 2, 6, 2),
+            Margin = new Padding(2)
+        };
+        browseBtn.Click += (_, _) =>
+        {
+            using var dlg = new FolderBrowserDialog
+            {
+                Description = "Select your osu! Songs folder",
+                SelectedPath = string.IsNullOrEmpty(songsBox.Text)
+                    ? OsuMapDetector.DefaultSongsPath
+                    : songsBox.Text
+            };
+            if (dlg.ShowDialog(this) == DialogResult.OK)
+                songsBox.Text = dlg.SelectedPath;
+        };
+        pathRow.Controls.Add(browseBtn, 1, 0);
+
+        songsBox.Leave += (_, _) =>
+        {
+            ConfigManager.Instance.ActiveProfile.OsuSongsPath = songsBox.Text.Trim();
+            ConfigManager.Instance.SaveSettings();
+            OsuMapDetector.ClearCache();
+        };
+        stack.Controls.Add(pathRow, 0, 1);
+
+        // Row 2 – "Convert key count:" label + NumericUpDown
+        var convRow = new TableLayoutPanel
+        {
+            ColumnCount = 2,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 6, 0, 0),
+            BackColor = Color.Transparent
+        };
+        convRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        convRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+        var convLbl = new Label
+        {
+            Text = "Convert key count:",
+            Font = RetroFont,
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(2, 6, 12, 2)
+        };
+        convRow.Controls.Add(convLbl, 0, 0);
+
+        var convSpin = new NumericUpDown
+        {
+            Minimum = 4,
+            Maximum = 10,
+            DecimalPlaces = 0,
+            Increment = 1,
+            Value = Math.Clamp(activeProfile.ManiaConvertKeyCount, 4, 10),
+            Width = 60,
+            Anchor = AnchorStyles.Left,
+            Margin = new Padding(2, 2, 2, 2)
+        };
+        convSpin.ValueChanged += (_, _) =>
+        {
+            ConfigManager.Instance.ActiveProfile.ManiaConvertKeyCount = (int)convSpin.Value;
+            ConfigManager.Instance.SaveSettings();
+            OsuMapDetector.ClearCache();
+        };
+        convRow.Controls.Add(convSpin, 1, 0);
+        stack.Controls.Add(convRow, 0, 2);
+
+        // Row 3 – hint
+        var convHint = new Label
+        {
+            Text = "(must match osu!'s convert setting — cycle with F4 at song select)",
+            Font = RetroFont,
+            ForeColor = Color.FromArgb(160, 160, 170),
+            AutoSize = true,
+            Margin = new Padding(2, 2, 2, 2)
+        };
+        stack.Controls.Add(convHint, 0, 3);
+
+        // Row 4 – import button
+        var importBtn = new Button
+        {
+            Text = "Import keys from osu!",
+            Font = RetroFont,
+            FlatStyle = FlatStyle.Standard,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Padding = new Padding(8, 4, 8, 4),
+            Margin = new Padding(2, 6, 2, 2)
+        };
+        importBtn.Click += (_, _) => ImportKeysFromOsu();
+        stack.Controls.Add(importBtn, 0, 4);
+
+        return grp;
     }
 
     // ── Button click: start listening ───────────────────────────
@@ -352,6 +493,61 @@ internal sealed class KeybindsTab : UserControl
         btn.Text = NativeApi.DisplayName(key);
     }
 
+    // ── Import mania keys from osu!stable config ────────────────
+
+    private void ImportKeysFromOsu()
+    {
+        var profile = ConfigManager.Instance.ActiveProfile;
+        int kc = Math.Clamp(profile.ManiaConvertKeyCount, 1, 10);
+
+        string? cfg = OsuConfigImporter.FindConfigFile(profile.OsuSongsPath);
+        if (cfg == null)
+        {
+            using var dlg = new OpenFileDialog
+            {
+                Title  = "Locate your osu!.<Username>.cfg",
+                Filter = "osu! config|osu!.*.cfg|All files|*.*"
+            };
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            cfg = dlg.FileName;
+        }
+
+        var bindings = OsuConfigImporter.ImportManiaBindings(cfg, kc);
+        if (bindings == null)
+        {
+            MessageBox.Show(this,
+                $"Couldn't find complete {kc}K mania bindings in:\n{cfg}\n\n" +
+                "Confirm the convert key count matches what you use in osu!, " +
+                "or open the .cfg and check that Mania" + kc + "K entries exist.",
+                "Import failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        // Ensure the array is large enough, then overwrite the first kc slots.
+        if (profile.ManiaKeys.Length < kc)
+        {
+            var grown = new string[Math.Max(10, kc)];
+            Array.Copy(profile.ManiaKeys, grown, profile.ManiaKeys.Length);
+            profile.ManiaKeys = grown;
+        }
+        for (int i = 0; i < kc; i++)
+            profile.ManiaKeys[i] = bindings[i];
+
+        ConfigManager.Instance.SaveSettings();
+
+        // Refresh displayed button text without rebuilding the tab.
+        if (_maniaButtons != null)
+        {
+            for (int i = 0; i < kc && i < _maniaButtons.Length; i++)
+                if (_maniaButtons[i] != null)
+                    _maniaButtons[i].Text = NativeApi.DisplayName(bindings[i]);
+        }
+
+        MessageBox.Show(this,
+            $"Imported {kc} mania keybinds from osu!stable.",
+            "Import successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
     // ── Reset to defaults ───────────────────────────────────────
 
     private void ResetButton_Click(object? sender, EventArgs e)
@@ -380,22 +576,6 @@ internal sealed class KeybindsTab : UserControl
 
         ConfigManager.Instance.SaveSettings();
         NativeApi.UpdateLaneScans(kb.LaneKeys);
-    }
-
-    // ── Proportional scaling ────────────────────────────────────
-
-    protected override void OnSizeChanged(EventArgs e)
-    {
-        base.OnSizeChanged(e);
-        if (_scaler == null)
-        {
-            if (ClientSize.Width > 300 && ClientSize.Height > 200)
-                _scaler = new LayoutScaler(this);
-        }
-        else
-        {
-            _scaler.Apply(this);
-        }
     }
 
     // ── Cleanup ─────────────────────────────────────────────────

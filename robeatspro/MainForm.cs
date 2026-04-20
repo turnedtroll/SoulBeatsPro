@@ -17,8 +17,8 @@ internal sealed class MainForm : Form
 
         Text = $"SoulBeats Pro  v{AutoUpdater.CurrentVersion.ToString(3)}";
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(460, 420);
-        MinimumSize = new Size(400, 350);
+        ClientSize = new Size(560, 540);
+        MinimumSize = new Size(480, 420);
         BackColor = theme.GetWindowBg();
         Font = theme.GetFont();
         DoubleBuffered = true;
@@ -26,11 +26,13 @@ internal sealed class MainForm : Form
         // Load background image into shared cache
         ConfigManager.ReloadBackgroundImage();
 
-        // Tab control
+        // Tab control — Multiline so all tab headers stay visible on any window width
+        // instead of collapsing into scroll arrows.
         _tabs = new TabControl
         {
             Dock = DockStyle.Fill,
-            Font = theme.GetFont()
+            Font = theme.GetFont(),
+            Multiline = true
         };
 
         // ── Tabs ────────────────────────────────────────────────

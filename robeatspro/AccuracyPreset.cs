@@ -38,6 +38,21 @@ internal static class AccuracyPresetTable
         new(35, 25, 95)
     };
 
+    // Bidirectional jitter parameters for osu!mania (beatmap-file) mode.
+    // StdDevMs is the Gaussian spread; ClampFrac is the fraction of the
+    // Marvelous (300g) window the press is allowed to drift from the true note time.
+    // At OsuManiaTimingWindows.MarvelousMs = 16.5, a ClampFrac of 1.0 = ±16.5 ms.
+    // Every preset stays strictly inside the Marvelous window so hits never drop below 300g.
+    private readonly record struct BidirectionalTuning(double StdDevMs, double ClampFrac);
+
+    private static readonly BidirectionalTuning[] Bidirectional =
+    {
+        new(0.0, 0.00), // PerfectOnly    — no jitter, robotic.
+        new(1.5, 0.35), // MostlyPerfects — ~1/3 Marvelous window, barely noticeable drift.
+        new(3.5, 0.65), // HumanLike      — ~2/3 Marvelous window, visible human cadence + headroom.
+        new(5.0, 0.90), // Sloppy         — near-full Marvelous window, still always 300g.
+    };
+
     public static PresetTuning GetTuning(AccuracyPreset preset)
     {
         int idx = (int)preset;
@@ -78,6 +93,40 @@ internal static class AccuracyPresetTable
         if (ms < 0) ms = 0;
         if (ms > cap) ms = cap;
         return ms / 1000.0;
+    }
+
+    /// <summary>
+    /// Signed jitter in ms sampled from a narrow Gaussian (bidirectional — can be early or late).
+    /// Used by osu!mania (beatmap-file) mode where note times are known in advance, so presses
+    /// can scatter around the target without ever missing. The bound is derived from the
+    /// Marvelous (300g) window (<see cref="OsuManiaTimingWindows.MarvelousMs"/>), so even the
+    /// widest preset stays strictly inside 300g.
+    /// </summary>
+    public static double SampleJitterMsBidirectional(AccuracyPreset preset, double maxJudgmentMs, Random rng)
+    {
+        int idx = (int)preset;
+        if (idx < 0 || idx >= Bidirectional.Length) idx = 0;
+        var t = Bidirectional[idx];
+        if (t.StdDevMs <= 0.0 || t.ClampFrac <= 0.0) return 0.0;
+
+        double u1 = 1.0 - rng.NextDouble();
+        double u2 = 1.0 - rng.NextDouble();
+        double z = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+
+        double ms = z * t.StdDevMs;
+
+        // Cap is a fraction of the Marvelous (300g) window. Shave 0.5ms safety margin
+        // so we never sample exactly at the window edge (rounding/latency could bump over).
+        double cap = OsuManiaTimingWindows.MarvelousMs * t.ClampFrac - 0.5;
+        if (cap < 0) cap = 0;
+
+        // If the profile sets a tighter judgment window (e.g. another rhythm game using
+        // this preset), honor it via a half-window safety limit.
+        if (maxJudgmentMs > 0.0) cap = Math.Min(cap, maxJudgmentMs / 2.0);
+
+        if (ms >  cap) ms =  cap;
+        if (ms < -cap) ms = -cap;
+        return ms;
     }
 
     /// <summary>Generic labels suitable for any profile.</summary>

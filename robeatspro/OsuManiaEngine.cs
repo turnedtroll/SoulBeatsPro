@@ -79,6 +79,24 @@ internal sealed class OsuManiaEngine
     }
 
     /// <summary>
+    /// Collect every note that shares the same TimeMs as the first note — the "first tick".
+    /// These are all pressed simultaneously on sync; returns their columns in note order.
+    /// Pure helper — exposed for tests.
+    /// </summary>
+    public static List<int> CollectFirstTickColumns(List<OsuNote> notes)
+    {
+        var cols = new List<int>();
+        if (notes.Count == 0) return cols;
+        int firstTickTime = notes[0].TimeMs;
+        for (int i = 0; i < notes.Count; i++)
+        {
+            if (notes[i].TimeMs != firstTickTime) break;
+            cols.Add(notes[i].Column);
+        }
+        return cols;
+    }
+
+    /// <summary>
     /// Main engine loop. Call from a background thread.
     /// </summary>
     public void Run()
@@ -88,26 +106,43 @@ internal sealed class OsuManiaEngine
         var preset = profile.AccuracyPreset;
         var maxJudgmentMs = profile.MaxJudgmentMs;
         double toggleDelay = tuning.ToggleDelay;
+        double inputOffsetMs = tuning.InputOffsetMs;
 
-        var schedule = BuildSchedule(_beatmap.Notes, tuning.MinPressDurationMs, skipFirstNote: true);
-        if (schedule.Count == 0 && _beatmap.Notes.Count <= 1)
+        if (_beatmap.Notes.Count == 0)
         {
             _syncStatus = "Beatmap has no notes to play";
             return;
         }
 
-        // Pre-compute accuracy jitter for each press event (sample once, not every spin)
+        var firstNote = _beatmap.Notes[0];
+        int firstTickTime = firstNote.TimeMs;
+        var firstTickColumns = CollectFirstTickColumns(_beatmap.Notes);
+
+        // OD drives the non-Marvelous judgment windows. Marvelous (300g) is fixed at 16.5ms.
+        double od = _beatmap.OverallDifficulty;
+        double perfectMs = OsuManiaTimingWindows.GetWindowMs(OsuManiaJudgment.Perfect, od);
+        string odSummary = $"OD {od:0.#} — Marvelous ±{OsuManiaTimingWindows.MarvelousMs:0.#}ms, Perfect ±{perfectMs:0.#}ms";
+        DetectionStatus = string.IsNullOrEmpty(DetectionStatus)
+            ? odSummary
+            : $"{DetectionStatus} · {odSummary}";
+
+        // Build full schedule — first-tick PRESS events are skipped post-sync
+        // (we press those columns directly when sync triggers). Their RELEASE events
+        // stay in the schedule and fire naturally as playback advances.
+        var schedule = BuildSchedule(_beatmap.Notes, tuning.MinPressDurationMs, skipFirstNote: false);
+
+        // Pre-compute bidirectional jitter per press event. Each chord-member gets an
+        // independent sample so simultaneous notes scatter naturally like human fingers.
         var jitterMs = new double[schedule.Count];
         for (int i = 0; i < schedule.Count; i++)
         {
             if (schedule[i].Kind == ScheduledEventKind.Press)
-                jitterMs[i] = AccuracyPresetTable.SampleDelaySeconds(preset, maxJudgmentMs, _rng) * 1000.0;
+                jitterMs[i] = AccuracyPresetTable.SampleJitterMsBidirectional(preset, maxJudgmentMs, _rng);
         }
 
         // === SYNC PHASE ===
         _syncStatus = "Waiting for first note...";
 
-        var firstNote = _beatmap.Notes[0];
         int syncColumn = firstNote.Column;
 
         (var tapPixels, _) = ConfigManager.Instance.LoadCoords();
@@ -142,7 +177,12 @@ internal sealed class OsuManiaEngine
         double lastToggle = 0;
         bool synced = false;
         double anchorWallTime = 0;
-        int anchorBeatmapMs = firstNote.TimeMs;
+        // anchorBeatmapMs is shifted forward by inputOffsetMs so the engine's
+        // idea of "current beatmap time" runs slightly ahead of real time —
+        // presses fire inputOffsetMs earlier in wall time, compensating for
+        // capture + SendInput latency so hits land on Marvelous (300g).
+        int anchorBeatmapMs = firstTickTime;
+        int eventIdx = 0;
 
         int syncFrameCount = 0;
         double syncFpsTimer = sw.Elapsed.TotalSeconds;
@@ -173,34 +213,34 @@ internal sealed class OsuManiaEngine
             _syncStatus = $"Waiting for first note at col {syncColumn + 1} ({matchCount}/{minPixels} px)";
             if (matchCount >= minPixels)
             {
-                if (syncColumn < _scanCodes.Length)
+                // Press every column in the first tick simultaneously — chord members
+                // arrive at the receptor together, so they must be pressed together.
+                foreach (int col in firstTickColumns)
                 {
-                    NativeApi.PressScan(_scanCodes[syncColumn]);
-                    _held[syncColumn] = true;
+                    if (col < _scanCodes.Length && !_held[col])
+                    {
+                        NativeApi.PressScan(_scanCodes[col]);
+                        _held[col] = true;
+                    }
+                    if (col < _parent.States.Length)
+                        _parent.States[col] = MacroEngine.LaneState.Pressing;
                 }
 
-                if (syncColumn < _parent.States.Length)
-                    _parent.States[syncColumn] = MacroEngine.LaneState.Pressing;
                 anchorWallTime = sw.Elapsed.TotalSeconds;
+                anchorBeatmapMs = firstTickTime + (int)Math.Round(inputOffsetMs);
                 synced = true;
                 _syncStatus = "Synced — playing";
 
-                double firstReleaseDelaySec;
-                if (firstNote.IsHold && firstNote.EndTimeMs > firstNote.TimeMs)
-                    firstReleaseDelaySec = (firstNote.EndTimeMs - firstNote.TimeMs) / 1000.0;
-                else
-                    firstReleaseDelaySec = tuning.MinPressDurationMs / 1000.0;
-
-                while (!_stopRequested && (sw.Elapsed.TotalSeconds - anchorWallTime) < firstReleaseDelaySec)
-                    Thread.SpinWait(100);
-
-                if (syncColumn < _scanCodes.Length)
+                // Advance past the first-tick PRESS events we just handled.
+                // Their RELEASE events remain in the schedule and fire in playback.
+                while (eventIdx < schedule.Count)
                 {
-                    NativeApi.ReleaseScan(_scanCodes[syncColumn]);
-                    _held[syncColumn] = false;
+                    var evt = schedule[eventIdx];
+                    if (evt.Kind == ScheduledEventKind.Press && evt.TimeMs == firstTickTime)
+                        eventIdx++;
+                    else
+                        break;
                 }
-                if (syncColumn < _parent.States.Length)
-                    _parent.States[syncColumn] = MacroEngine.LaneState.Released;
             }
 
             Thread.SpinWait(100);
@@ -209,10 +249,16 @@ internal sealed class OsuManiaEngine
         if (_stopRequested) { ReleaseAll(); return; }
 
         // === PLAYBACK PHASE ===
-        int eventIdx = 0;
+        // Pace the loop to a steady 2000 Hz (500μs per tick). Without this, the spin-wait
+        // loop runs at a few million iterations/sec, inflating the FPS counter into the
+        // millions and burning CPU for no extra timing precision. 2000 Hz is ~30× finer
+        // than the 16.5ms Marvelous window — plenty of headroom — and shows as a clean,
+        // readable number in the UI.
         int frameCount = 0;
         double fpsTimer = sw.Elapsed.TotalSeconds;
         double pauseStartTime = 0;
+        long playbackTicksPerFrame = Stopwatch.Frequency / 2000;
+        long nextFrameTicks = sw.ElapsedTicks + playbackTicksPerFrame;
 
         while (!_stopRequested && eventIdx < schedule.Count)
         {
@@ -284,7 +330,13 @@ internal sealed class OsuManiaEngine
                 eventIdx++;
             }
 
-            Thread.SpinWait(100);
+            // Pace to target tick rate — sleep the remainder of the 500μs budget.
+            while (sw.ElapsedTicks < nextFrameTicks)
+                Thread.SpinWait(100);
+            nextFrameTicks += playbackTicksPerFrame;
+            // If we fell behind (e.g. pause resume), snap forward to avoid a burst.
+            if (nextFrameTicks < sw.ElapsedTicks)
+                nextFrameTicks = sw.ElapsedTicks + playbackTicksPerFrame;
         }
 
         ReleaseAll();

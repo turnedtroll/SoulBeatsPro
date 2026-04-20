@@ -16,6 +16,7 @@ namespace SoulBeatsPro
         private NumericUpDown nudToggleDelay = null!;
         private NumericUpDown nudHoldArmGrace = null!;
         private NumericUpDown nudHoldReleaseGrace = null!;
+        private NumericUpDown nudInputOffset = null!;
 
         // ── Actions ──
         private Button btnReset = null!;
@@ -83,7 +84,7 @@ namespace SoulBeatsPro
             {
                 Text     = "Timing (seconds)",
                 Location = new Point(8, 94),
-                Size     = new Size(Width - 16, 156),
+                Size     = new Size(Width - 16, 182),
                 Anchor   = anchorLTR
             };
 
@@ -137,21 +138,32 @@ namespace SoulBeatsPro
             nudHoldReleaseGrace = MakeDoubleSpinner();
             nudHoldReleaseGrace.Location = new Point(180, 126);
 
+            var lblInputOffset = new Label
+            {
+                Text     = "Input Offset (ms):",
+                Location = new Point(12, 154),
+                AutoSize = true
+            };
+
+            nudInputOffset = MakeMsSpinner();
+            nudInputOffset.Location = new Point(180, 152);
+
             grpTiming.Controls.AddRange(new Control[]
             {
                 lblTapDuration,  nudTapDuration,
                 lblHoldCooldown, nudHoldCooldown,
                 lblToggleDelay,  nudToggleDelay,
                 lblHoldArmGrace, nudHoldArmGrace,
-                lblHoldReleaseGrace, nudHoldReleaseGrace
+                lblHoldReleaseGrace, nudHoldReleaseGrace,
+                lblInputOffset,  nudInputOffset
             });
 
             // ── Info GroupBox ───────────────────────────────────
             var grpInfo = new GroupBox
             {
                 Text     = "Info",
-                Location = new Point(8, 258),
-                Size     = new Size(Width - 16, 200),
+                Location = new Point(8, 284),
+                Size     = new Size(Width - 16, 220),
                 Anchor   = anchorLTR
             };
 
@@ -170,9 +182,14 @@ namespace SoulBeatsPro
                     "Arm Grace: how long the hold-arm flag stays\r\n" +
                     "active after gold disappears from hold zone.\r\n" +
                     "Release Grace: how long to wait before releasing\r\n" +
-                    "a hold — prevents drops from brief flickers.",
+                    "a hold — prevents drops from brief flickers.\r\n" +
+                    "Input Offset: osu!mania only — ms to shift press\r\n" +
+                    "timing. Positive = press earlier, negative = later.\r\n" +
+                    "If hits land Green (Great/200) because macro fires\r\n" +
+                    "early, use NEGATIVE offset (-10 to -30). If they\r\n" +
+                    "land late, use positive. Range: ±50ms.",
                 Location  = new Point(12, 20),
-                Size      = new Size(grpInfo.Width - 24, 170),
+                Size      = new Size(grpInfo.Width - 24, 190),
                 Anchor    = anchorLTR,
                 AutoSize  = false
             };
@@ -185,7 +202,7 @@ namespace SoulBeatsPro
                 Text      = "Reset to Defaults",
                 FlatStyle = FlatStyle.Standard,
                 Size      = new Size(120, 28),
-                Location  = new Point(8, 470),
+                Location  = new Point(8, 516),
                 Anchor    = AnchorStyles.Left | AnchorStyles.Bottom
             };
             btnReset.Click += BtnReset_Click;
@@ -229,6 +246,18 @@ namespace SoulBeatsPro
             };
         }
 
+        private static NumericUpDown MakeMsSpinner()
+        {
+            return new NumericUpDown
+            {
+                Minimum       = -50m,
+                Maximum       = 50m,
+                DecimalPlaces = 1,
+                Increment     = 1m,
+                Size          = new Size(70, 20)
+            };
+        }
+
         // ────────────────────────────────────────────────────────
         //  Config ↔ UI
         // ────────────────────────────────────────────────────────
@@ -246,6 +275,7 @@ namespace SoulBeatsPro
             nudToggleDelay.Value  = (decimal)t.ToggleDelay;
             nudHoldArmGrace.Value = (decimal)t.HoldArmGrace;
             nudHoldReleaseGrace.Value = (decimal)t.HoldReleaseGrace;
+            nudInputOffset.Value  = Math.Clamp((decimal)t.InputOffsetMs, nudInputOffset.Minimum, nudInputOffset.Maximum);
 
             AttachValueChanged();
         }
@@ -261,6 +291,7 @@ namespace SoulBeatsPro
             t.ToggleDelay         = (double)nudToggleDelay.Value;
             t.HoldArmGrace        = (double)nudHoldArmGrace.Value;
             t.HoldReleaseGrace    = (double)nudHoldReleaseGrace.Value;
+            t.InputOffsetMs       = (double)nudInputOffset.Value;
 
             ConfigManager.Instance.SaveSettings();
         }
@@ -277,6 +308,7 @@ namespace SoulBeatsPro
             nudToggleDelay.ValueChanged  += Spinner_ValueChanged;
             nudHoldArmGrace.ValueChanged += Spinner_ValueChanged;
             nudHoldReleaseGrace.ValueChanged += Spinner_ValueChanged;
+            nudInputOffset.ValueChanged += Spinner_ValueChanged;
         }
 
         private void DetachValueChanged()
@@ -288,6 +320,7 @@ namespace SoulBeatsPro
             nudToggleDelay.ValueChanged  -= Spinner_ValueChanged;
             nudHoldArmGrace.ValueChanged -= Spinner_ValueChanged;
             nudHoldReleaseGrace.ValueChanged -= Spinner_ValueChanged;
+            nudInputOffset.ValueChanged -= Spinner_ValueChanged;
         }
 
         private void Spinner_ValueChanged(object? sender, EventArgs e)

@@ -107,4 +107,48 @@ public class OsuManiaEngineTests
         Assert.Equal(1, events[0].Column);
         Assert.Equal(1200, events[0].TimeMs);
     }
+
+    [Fact]
+    public void collect_first_tick_columns_returns_single_column_when_no_chord()
+    {
+        var notes = new List<OsuNote>
+        {
+            new(column: 2, timeMs: 1000, endTimeMs: 0, isHold: false),
+            new(column: 0, timeMs: 1200, endTimeMs: 0, isHold: false),
+        };
+
+        var cols = OsuManiaEngine.CollectFirstTickColumns(notes);
+
+        Assert.Single(cols);
+        Assert.Equal(2, cols[0]);
+    }
+
+    [Fact]
+    public void collect_first_tick_columns_returns_all_notes_in_opening_chord()
+    {
+        // Map opens with a 3-note chord at t=1000, then a later note at t=1200.
+        // All three chord members must be returned so sync presses them together.
+        var notes = new List<OsuNote>
+        {
+            new(column: 0, timeMs: 1000, endTimeMs: 0, isHold: false),
+            new(column: 1, timeMs: 1000, endTimeMs: 2000, isHold: true),
+            new(column: 3, timeMs: 1000, endTimeMs: 0, isHold: false),
+            new(column: 2, timeMs: 1200, endTimeMs: 0, isHold: false),
+        };
+
+        var cols = OsuManiaEngine.CollectFirstTickColumns(notes);
+
+        Assert.Equal(3, cols.Count);
+        Assert.Contains(0, cols);
+        Assert.Contains(1, cols);
+        Assert.Contains(3, cols);
+        Assert.DoesNotContain(2, cols);
+    }
+
+    [Fact]
+    public void collect_first_tick_columns_handles_empty_notes()
+    {
+        var cols = OsuManiaEngine.CollectFirstTickColumns(new List<OsuNote>());
+        Assert.Empty(cols);
+    }
 }

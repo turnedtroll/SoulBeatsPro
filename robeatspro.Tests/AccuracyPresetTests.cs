@@ -82,4 +82,56 @@ public class AccuracyPresetTests
         for (int i = 0; i < 100; i++)
             Assert.Equal(0.0, AccuracyPresetTable.SampleDelaySeconds(AccuracyPreset.PerfectOnly, 140, rng));
     }
+
+    [Fact]
+    public void bidirectional_perfect_only_always_zero()
+    {
+        var rng = new Random(1);
+        for (int i = 0; i < 100; i++)
+            Assert.Equal(0.0, AccuracyPresetTable.SampleJitterMsBidirectional(AccuracyPreset.PerfectOnly, 140, rng));
+    }
+
+    [Fact]
+    public void bidirectional_stays_inside_marvelous_window()
+    {
+        // All presets must keep jitter inside ±16ms so hits never drop below Marvelous (300g).
+        var rng = new Random(42);
+        foreach (var preset in new[] { AccuracyPreset.MostlyPerfects, AccuracyPreset.HumanLike, AccuracyPreset.Sloppy })
+        {
+            for (int i = 0; i < 5000; i++)
+            {
+                double ms = AccuracyPresetTable.SampleJitterMsBidirectional(preset, 140, rng);
+                Assert.InRange(ms, -16.0, 16.0);
+            }
+        }
+    }
+
+    [Fact]
+    public void bidirectional_produces_both_early_and_late_hits()
+    {
+        // Humanlike should scatter around zero — not only-late like the unidirectional sampler.
+        var rng = new Random(9);
+        int early = 0, late = 0;
+        for (int i = 0; i < 5000; i++)
+        {
+            double ms = AccuracyPresetTable.SampleJitterMsBidirectional(AccuracyPreset.HumanLike, 140, rng);
+            if (ms < -0.5) early++;
+            else if (ms > 0.5) late++;
+        }
+        // Expect roughly balanced distribution (Gaussian mean 0) — at least 30% each side.
+        Assert.True(early > 1500, $"Expected more early hits, got {early}");
+        Assert.True(late  > 1500, $"Expected more late hits, got {late}");
+    }
+
+    [Fact]
+    public void bidirectional_mean_approximates_zero()
+    {
+        var rng = new Random(7);
+        double total = 0;
+        const int n = 20_000;
+        for (int i = 0; i < n; i++)
+            total += AccuracyPresetTable.SampleJitterMsBidirectional(AccuracyPreset.HumanLike, 140, rng);
+        double empiricalMean = total / n;
+        Assert.InRange(empiricalMean, -1.0, 1.0);
+    }
 }

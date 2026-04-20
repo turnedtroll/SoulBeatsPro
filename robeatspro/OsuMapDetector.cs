@@ -61,7 +61,7 @@ internal static class OsuMapDetector
         return found;
     }
 
-    public static (OsuBeatmap? beatmap, string status) Detect(string songsPath)
+    public static (OsuBeatmap? beatmap, string status) Detect(string songsPath, int convertKeyCount = 4)
     {
         var windowTitle = GetOsuWindowTitle();
         if (windowTitle == null)
@@ -94,24 +94,31 @@ internal static class OsuMapDetector
         {
             foreach (var osuFile in Directory.GetFiles(songDir, "*.osu"))
             {
-                if (_cache.TryGetValue(osuFile, out var cached))
+                string cacheKey = $"{osuFile}|{convertKeyCount}";
+                if (_cache.TryGetValue(cacheKey, out var cached))
                 {
                     if (MatchesBeatmap(cached, artist, title, difficulty))
-                        return (cached, $"Detected: {artist} - {title} [{difficulty}] ({cached.KeyCount}K)");
+                        return (cached, FormatDetectedStatus(cached, artist, title, difficulty));
                     continue;
                 }
 
-                var beatmap = OsuBeatmapParser.ParseFile(osuFile);
+                var beatmap = OsuBeatmapParser.ParseFile(osuFile, convertKeyCount);
                 if (beatmap == null) continue;
 
-                _cache[osuFile] = beatmap;
+                _cache[cacheKey] = beatmap;
 
                 if (MatchesBeatmap(beatmap, artist, title, difficulty))
-                    return (beatmap, $"Detected: {artist} - {title} [{difficulty}] ({beatmap.KeyCount}K)");
+                    return (beatmap, FormatDetectedStatus(beatmap, artist, title, difficulty));
             }
         }
 
         return (null, $"Could not find beatmap: {artist} - {title} [{difficulty}]");
+    }
+
+    private static string FormatDetectedStatus(OsuBeatmap b, string artist, string title, string difficulty)
+    {
+        string conv = b.IsConvert ? " [convert]" : "";
+        return $"Detected: {artist} - {title} [{difficulty}] ({b.KeyCount}K){conv}";
     }
 
     public static string DefaultSongsPath =>

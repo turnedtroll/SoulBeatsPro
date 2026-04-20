@@ -73,6 +73,24 @@ CircleSize:7
 
 [General]
 AudioFilename: audio.mp3
+Mode: 1
+
+[Metadata]
+Title:Taiko Map
+Artist:Test
+Version:Easy
+
+[Difficulty]
+CircleSize:4
+
+[HitObjects]
+256,192,1000,1,0,0:0:0:0:
+";
+
+    private const string StandardForConvert = @"osu file format v14
+
+[General]
+AudioFilename: audio.mp3
 Mode: 0
 
 [Metadata]
@@ -82,9 +100,14 @@ Version:Easy
 
 [Difficulty]
 CircleSize:4
+OverallDifficulty:6
 
 [HitObjects]
-256,192,1000,1,0,0:0:0:0:
+64,192,1000,1,0,0:0:0:0:
+192,192,1200,1,0,0:0:0:0:
+320,192,1400,2,0,B|256:192|128:192,1,100
+448,192,1600,12,0,3000,0:0:0:0:
+256,192,1800,1,0,0:0:0:0:
 ";
 
     [Fact]
@@ -138,10 +161,50 @@ CircleSize:4
     }
 
     [Fact]
-    public void returns_null_for_non_mania_mode()
+    public void returns_null_for_taiko_mode()
     {
         var beatmap = OsuBeatmapParser.Parse(NotMania);
         Assert.Null(beatmap);
+    }
+
+    [Fact]
+    public void converts_standard_mode_to_mania_with_configured_key_count()
+    {
+        var beatmap = OsuBeatmapParser.Parse(StandardForConvert, convertKeyCount: 4);
+        Assert.NotNull(beatmap);
+        Assert.True(beatmap!.IsConvert);
+        Assert.Equal(4, beatmap.KeyCount);
+        // 3 circles + 1 slider = 4 notes; spinner (type & 8) is skipped.
+        Assert.Equal(4, beatmap.Notes.Count);
+        // All convert notes are taps for now (slider hold duration not yet supported).
+        foreach (var n in beatmap.Notes)
+            Assert.False(n.IsHold);
+        // Column = x * 4 / 512 → x=64→0, x=192→1, x=320→2, x=256→2
+        Assert.Equal(0, beatmap.Notes[0].Column);
+        Assert.Equal(1, beatmap.Notes[1].Column);
+        Assert.Equal(2, beatmap.Notes[2].Column);
+        Assert.Equal(2, beatmap.Notes[3].Column);
+    }
+
+    [Fact]
+    public void convert_respects_custom_key_count()
+    {
+        var beatmap = OsuBeatmapParser.Parse(StandardForConvert, convertKeyCount: 7);
+        Assert.NotNull(beatmap);
+        Assert.Equal(7, beatmap!.KeyCount);
+        // x=64 → 64*7/512 = 0, x=192 → 2, x=320 → 4, x=256 → 3
+        Assert.Equal(0, beatmap.Notes[0].Column);
+        Assert.Equal(2, beatmap.Notes[1].Column);
+        Assert.Equal(4, beatmap.Notes[2].Column);
+        Assert.Equal(3, beatmap.Notes[3].Column);
+    }
+
+    [Fact]
+    public void mania_maps_are_not_marked_as_convert()
+    {
+        var beatmap = OsuBeatmapParser.Parse(ValidMania4K);
+        Assert.NotNull(beatmap);
+        Assert.False(beatmap!.IsConvert);
     }
 
     [Fact]
@@ -150,5 +213,38 @@ CircleSize:4
         var beatmap = OsuBeatmapParser.Parse(ManiaWithHolds)!;
         for (int i = 1; i < beatmap.Notes.Count; i++)
             Assert.True(beatmap.Notes[i].TimeMs >= beatmap.Notes[i - 1].TimeMs);
+    }
+
+    [Fact]
+    public void parses_overall_difficulty()
+    {
+        const string mapWithOd = @"osu file format v14
+
+[General]
+Mode: 3
+
+[Metadata]
+Title:OD Test
+Artist:Test
+Version:Insane
+
+[Difficulty]
+CircleSize:4
+OverallDifficulty:8.5
+
+[HitObjects]
+64,192,1000,1,0,0:0:0:0:
+";
+        var beatmap = OsuBeatmapParser.Parse(mapWithOd);
+        Assert.NotNull(beatmap);
+        Assert.Equal(8.5, beatmap!.OverallDifficulty, 3);
+    }
+
+    [Fact]
+    public void missing_overall_difficulty_falls_back_to_default()
+    {
+        var beatmap = OsuBeatmapParser.Parse(ValidMania4K);
+        Assert.NotNull(beatmap);
+        Assert.Equal(OsuManiaTimingWindows.DefaultOd, beatmap!.OverallDifficulty);
     }
 }

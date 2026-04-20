@@ -45,4 +45,11 @@ internal sealed class Profile
     [JsonPropertyName("detectionMode")] public DetectionMode DetectionMode { get; set; } = DetectionMode.PixelBased;
     [JsonPropertyName("maniaKeys")] public string[] ManiaKeys { get; set; } = ["D", "F", "J", "K"];
     [JsonPropertyName("osuSongsPath")] public string OsuSongsPath { get; set; } = "";
+
+    /// <summary>
+    /// Key count used when playing osu!standard maps converted to mania. Must match the
+    /// K count the game actually renders — count the visible lanes in-game, or cycle with
+    /// F4 at song select. Default 7K (osu!stable's default convert).
+    /// </summary>
+    [JsonPropertyName("maniaConvertKeyCount")] public int ManiaConvertKeyCount { get; set; } = 7;
 }
